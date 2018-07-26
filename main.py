@@ -1,5 +1,6 @@
 
 import sys
+import time
 from PyQt5.QtQml import QQmlApplicationEngine,qmlRegisterType
 from PyQt5.Qt import QApplication,Qt,QObject
 from PyQt5.Qt import pyqtSlot,pyqtSignal
@@ -28,9 +29,9 @@ class DownloaderThread(QThread):
 class Downloader(QObject):
     #pyqtSignal
     input = pyqtSignal(str,arguments = ["msg"])
-    downloadProgress = pyqtSignal("qint64","qint64",arguments = [ "receiver" , "total" ])
+    downloadProgress = pyqtSignal("qint64","qint64","qint64",arguments = [ "receiver" , "total" , "timeStamp" ])
 
-    #member
+    #membernew
     manager = QNetworkAccessManager()
     thread = DownloaderThread()
     
@@ -49,9 +50,15 @@ class Downloader(QObject):
     def getUrl(self,url):
         reply = self.manager.get(QNetworkRequest(QUrl(url)))
         #reply.downloadProgress.connect(self.thread.loadding)
-        reply.downloadProgress.connect(self.downloadProgress)
+        reply.downloadProgress.connect(self.getTimestamp)
         print(reply)
-    
+
+    @pyqtSlot("qint64","qint64")
+    def getTimestamp(self,receiver,total):
+        #获取时间戳，因为我不知道qml如何获取，然后发射信号给qml更新界面
+        now = int(time.time())
+        self.downloadProgress.emit(receiver,total,now)
+
     @pyqtSlot()
     def success(self):
         print("xiazai wanc")

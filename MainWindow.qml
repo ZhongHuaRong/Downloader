@@ -12,8 +12,8 @@ Item {
         messageDialog.open()
     }
 
-    function setDownProgress(success,total){
-        filemsgItem.setProgress(success,total)
+    function setDownProgress(success,total,timeStamp){
+        filemsgItem.setProgress(success,total,timeStamp)
     }
 
     Component.onCompleted: {

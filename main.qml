@@ -23,7 +23,7 @@ Window {
         id:downloader
 
         onDownloadProgress:{
-            mainWindow.setDownProgress(receiver,total)
+            mainWindow.setDownProgress(receiver,total,timeStamp)
         }
     }
 

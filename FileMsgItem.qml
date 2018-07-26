@@ -8,8 +8,61 @@ Item {
 
     property string fileName: ""
 
-    function setProgress(value,max){
+    property real total: 0.0
+    property int  curProgress: 0
+    property int  curTime: 0
+    property var  curSpeed: 0.0
+
+    function setProgress(value,max,timeStamp){
         bar.value = value/max * 100
+
+        if(curProgress ==0){
+            total = max
+            curProgress = value
+            curTime = timeStamp
+            curSpeed = 0.0
+        }
+        else if(curTime == timeStamp){
+        }
+        else {
+            curSpeed = (value - curProgress) / (timeStamp - curTime)
+            curProgress = value
+            curTime = timeStamp
+        }
+        setMsg(total,curSpeed,value)
+    }
+
+    function setMsg(total,curSpeed,value){
+        progressText.text = "总大小:" + changeToString(total) +
+                ",已下载" + changeToString(value) +
+                ",当前百分比" + (value / total * 100).toFixed(2) + "%" +
+                ",当前速度:" + changeToString(curSpeed) + "/s"
+    }
+
+    function changeToString(value){
+        var n = 0
+        while(value>1024){
+            value /= 1024.0
+            n++
+        }
+
+        var m
+        switch(n){
+        case 0:
+            m = "B"
+            break
+        case 1:
+            m = "KB"
+            break
+        case 2:
+            m = "M"
+            break
+        case 3:
+            m = "G"
+            break
+        }
+
+        return value.toFixed(2) + m
     }
 
     ColumnLayout {
@@ -41,6 +94,11 @@ Item {
                     radius: bar.width/3
                     color: "#4dc7e7"
                 }
+            }
+
+            TextLoader{
+                id:progressText
+                anchors.fill: parent
             }
         }
     }
