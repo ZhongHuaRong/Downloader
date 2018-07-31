@@ -8,7 +8,8 @@
             "type": "shell",
             "command": "python",
             "args": [
-                "${file}"
+                //"${file}"
+                "main.pyw"
             ],
             "problemMatcher": []
         }

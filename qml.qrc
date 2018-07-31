@@ -1,10 +1,15 @@
 <RCC>
     <qresource prefix="/">
-        <file>main.qml</file>
-        <file>CTextEdit.qml</file>
-        <file>TextLoader.qml</file>
-        <file>MainWindow.qml</file>
-        <file>CPushButton.qml</file>
-        <file>FileMsgItem.qml</file>
+        <file>qml/CCheckBox.qml</file>
+        <file>qml/CProgressBar.qml</file>
+        <file>qml/CProgressBarAnimation.qml</file>
+        <file>qml/CPushButton.qml</file>
+        <file>qml/CTextEdit.qml</file>
+        <file>qml/DownloadPage.qml</file>
+        <file>qml/FileMsgItem.qml</file>
+        <file>qml/main.qml</file>
+        <file>qml/MainWindow.qml</file>
+        <file>qml/SettingPage.qml</file>
+        <file>qml/TextLoader.qml</file>
     </qresource>
 </RCC>
