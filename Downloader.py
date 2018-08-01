@@ -6,11 +6,11 @@ from PyQt5.Qt import QApplication,Qt,QObject
 from PyQt5.Qt import pyqtSlot,pyqtSignal,pyqtProperty
 from PyQt5.QtWidgets import *
 from PyQt5.QtNetwork import QNetworkAccessManager,QNetworkRequest,QNetworkReply
-from PyQt5.Qt import QThread,QUrl,QFile,QDir
+from PyQt5.Qt import QThread,QUrl,QFile,QDir,QTextStream
 from PyQt5.Qt import QProcess
 
 class Downloader(QObject):
-    #pyqtSignal
+    # pyqtSignal
     downloadProgress = pyqtSignal("qint64","qint64","qint64",arguments = [ "receiver" , "total" , "timeStamp" ])
     showMsg = pyqtSignal(str,str,arguments = [ "title","msg" ])
     showError = pyqtSignal(str,arguments = [ "err" ])
@@ -27,11 +27,11 @@ class Downloader(QObject):
     urlChanged = pyqtSignal()
     fileNameChanged = pyqtSignal()
 
-    #成员变量
+    # 成员变量
     reply = None
 
-    #类的属性，提供给qml使用######################
-    ####################total###################
+    # 类的属性，提供给qml使用# # # # # # # # # # # # # # # # # # # # # # 
+    # # # # # # # # # # # # # # # # # # # # total# # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = totalChanged)
     def total(self):
         return self._total
@@ -40,7 +40,7 @@ class Downloader(QObject):
     def total(self, value):
         self._total = value
         self.totalChanged.emit()
-    ################curProgress##################
+    # # # # # # # # # # # # # # # # curProgress# # # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = curProgressChanged)
     def curProgress(self):
         return self._curProgress
@@ -49,7 +49,7 @@ class Downloader(QObject):
     def curProgress(self, value):
         self._curProgress = value
         self.curProgressChanged.emit()
-    ################preProgress##################
+    # # # # # # # # # # # # # # # # preProgress# # # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = preProgressChanged)
     def preProgress(self):
         return self._preProgress
@@ -58,7 +58,7 @@ class Downloader(QObject):
     def preProgress(self, value):
         self._preProgress = value
         self.preProgressChanged.emit()
-    #################curTime###################
+    # # # # # # # # # # # # # # # # # curTime# # # # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = curTimeChanged)
     def curTime(self):
         return self._curTime
@@ -67,7 +67,7 @@ class Downloader(QObject):
     def curTime(self, value):
         self._curTime = value
         self.curTimeChanged.emit()
-    #################startTime###################
+    # # # # # # # # # # # # # # # # # startTime# # # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = startTimeChanged)
     def startTime(self):
         return self._startTime
@@ -76,7 +76,7 @@ class Downloader(QObject):
     def startTime(self, value):
         self._startTime = value
         self.startTimeChanged.emit()
-    #####################url###################
+    # # # # # # # # # # # # # # # # # # # # # url# # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = urlChanged)
     def url(self):
         return self._url
@@ -85,7 +85,7 @@ class Downloader(QObject):
     def url(self, value):
         self._url = value
         self.urlChanged.emit()
-    #################fileName###################
+    # # # # # # # # # # # # # # # # # fileName# # # # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = fileNameChanged)
     def fileName(self):
         return self._filename
@@ -94,24 +94,24 @@ class Downloader(QObject):
     def fileName(self, value):
         self._filename = value
         self.fileNameChanged.emit()
-    ################downloading###################
+    # # # # # # # # # # # # # # # # downloading# # # # # # # # # # # # # # # #
     @pyqtProperty(bool,notify = downloadingChanged)
     def downloading(self):
         return self._isDownloading
-    ###################pause#####################
+    # # # # # # # # # # # # # # # # # # # pause# # # # # # # # # # # # # # # #
     @pyqtProperty(bool,notify = pauseChanged)
     def pause(self):
         return self._isPause
-    ###################finished#####################
+    # # # # # # # # # # # # # # # # # # # finished# # # # # # # # # # # # # # # 
     @pyqtProperty(bool,notify = finishChanged)
     def finish(self):
         return self._isFinished
-    #类的属性，提供给qml使用#######################
+    # 类的属性，提供给qml使用# # # # # # # # # # # # # # # # # # # # # # # 
     
-    #初始化函数
+    # 初始化函数
     def __init__(self,parent = None):
         super(Downloader,self).__init__(parent)
-        # QObject.__init__(self,parent)
+        #  QObject.__init__(self,parent)
 
         self._clipboard = QApplication.clipboard()
         self._clipboard.dataChanged.connect(self.boardDataChanged)
@@ -128,7 +128,7 @@ class Downloader(QObject):
         self._filename = ""
         self._url = ""
 
-    #析构函数
+    # 析构函数
     def __del__(self):
         pass
 
@@ -150,12 +150,15 @@ class Downloader(QObject):
         self._isFinished = flag
         self.finishChanged.emit()
 
-    #文件是否存在
+    # 判断文件是否在此目录
+    # path:文件所在路径
+    # filename:文件名(不带路径，带后缀名)
     def isFileExist(self,path,filename):
         dir = QDir(path)
         return filename in dir.entryList()
 
-    #错误处理，停止下载操作 + 通知用户
+    # 错误处理，停止下载操作,关闭文件,通知用户
+    # msg:错误信息，反馈给用户
     def errorHandling(self,msg):
         self.setDownloading(False)
         self.stopDown()
@@ -163,27 +166,41 @@ class Downloader(QObject):
             self._file.close()
         self.showError.emit(msg)
 
-    #准备下载前的所有参数重置(下载标志位不重置)
+    # 准备下载前的所有参数重置(下载标志位不重置)
     def downloadParamReset(self):
         self.curProgress = 0
+        self.preProgress = 0
         self.curTime = time.time()
         self.startTime = self.curTime
         self.total = 0
         self.setPause(False)
         self.setFinish(False)
 
-    @pyqtSlot(str,int,result = bool)
+    # 获取HTML里面的链接
+    # html:上一次下载所得到的文本，用于跳转链接
+    def getAllHtmlUrl(self,html):
+        urlList = list()
+        print(html)
+        key = 'href='
+        index = html.find(key)
+        while index > 0:
+            right = html.find('"',index + 2 + len(key) )
+            if right < 0 :
+                break
+            url = html[index + 1 + len(key):right]
+            # 消除多余的信息
+            url = url.replace('amp;','')
+            urlList.append(url)
+            index = html.find('href=',right)
+        return urlList
+        
+    # 开始下载，设置下载信息
+    # url:链接，如果为空则使用上一次留下来的URL，此功能用于暂停续传
+    # 如果为HTTPS链接，则下载
     def getUrl(self,url):
-        #获取文件资源
-        # if self.downloading:
-        #     if self.total <= 0:
-        #         #这个条件是用来判断是否是续传
-        #         self.showMsg.emit("下载","已经存在任务，先停止之前的任务再进行下载")
-        #         self._file.close()
-        #         return False
-
         request = QNetworkRequest()
         request.setRawHeader(str("Range").encode(),str("bytes=" + str(self.curProgress) + "-").encode())
+        # 当URL参数是none时，则是续传，否则是一个新任务
         if url == None:
             url = self.url
         else:
@@ -194,16 +211,15 @@ class Downloader(QObject):
             self.reply.deleteLater()
         self.reply = self._manager.get(request)
         self.reply.downloadProgress.connect(self.writeFile)
-        print("IOError",self.reply.errorString())
-        print("NetworkError",self.reply.error())
-        logging.info("IOError" + self.reply.errorString())
+        self.reply.finished.connect(self.downloadError)
         return True
 
-    @pyqtSlot(str,str,result = bool)
+    # 设置文件，用于存储下载的数据
+    # fileName:文件名，不带路径，带后缀名
+    # path:路径，绝对路径
     def setFile(self,fileName,path):
-        #打开文件，写入下载的文件
         if self.total <= 0:
-            #这个条件用于续传判断，不过续传不需要重新打开文件，这里保守判断
+            # 这个条件用于续传判断，不过续传不需要重新打开文件，这里保守判断
             if self.isFileExist(path,fileName):
                 self.errorHandling("文件已存在，请修改路径")
                 return False
@@ -213,47 +229,109 @@ class Downloader(QObject):
 
         self.fileName = fileName
         self._file.open(QFile.WriteOnly)
+        # 这里不需要seek，因为暂停续传不需要重新打开文件
+        # 不清楚以后的任务续传需不需要使用此函数接口
         self._file.seek(self._file.size())
         return True
 
+    # 槽函数
+    # 用于任务终止时输出错误信息，下载完成也会触发
+    @pyqtSlot()
+    def downloadError(self):
+        print("IOError",self.reply.errorString())
+        print("NetworkError",self.reply.error())
+        logging.info("IOError" + self.reply.errorString())
+
+    # 槽函数
+    # 把下载的内容写入文件
+    # receive:已接收的字节数
+    # total:文件总大小，如果是跳转链接这里很有可能是-1
+    # 注意：这里的-1只是出于大部分的情况，如果没有则有可能需要手动
+    # 去下载跳转的连接
     @pyqtSlot("qint64","qint64")
     def writeFile(self,receiver,total):
-        #写入文件
+        print("receiver",receiver)
+        print("total",total)
+
+        # 先判断-1的情况，因为这个不需要写入文件
+        if total == -1 and receiver > 0:
+            # 含有跳转链接
+            intext = QTextStream(self.reply)
+            urlList = self.getAllHtmlUrl(intext.readAll())
+            if len(urlList) != 0:
+                # 不为0则继续下载
+                print(urlList)
+                self.reply.downloadProgress.disconnect(self.writeFile)
+                self.reply.abort()
+                # 目前只默认下载第一个链接
+                self.getUrl(urlList[0])
+                return
+            else:
+                # 如果没有发现下载链接则继续写入文件
+                pass
+        
+        # 这里是刚开始下载的时候，total默认是0,设置下载的文件大小
         if self.total != total:
             self.total = total + self.preProgress
             if self._file.isOpen():
                 if self._file.size() < total:
-                    self._file.resize(total)
+                   self._file.resize(total)
             else:
                 self.errorHandling("文件打开错误，关闭下载")
                 return
         
+        # 这里是暂停续传部分，因为暂停发生后，reply.abort()
+        # 关闭下载通道，但是还是会触发这个槽函数
         if self.pause:
+            # 暂停触发，不处理后面接受到的字节数
             return
         elif not self.reply.isOpen():
+            # 如果不是因为暂停而关闭reply的通道的情况则需要通报用户下载失败
             if self.downloading:
                 self.errorHandling("网络通道已关闭，下载终止")
                 return
-        elif self._file.writeData(self.reply.readAll()) <= 0:
-            self.errorHandling("文件写入错误，关闭下载")
-            return
+        else:
+            #  正常情况
+            data = self.reply.readAll()
+            if len(data) == 0:
+                #  没有数据读取
+                self.success()
+                return
+            if self._file.writeData(data) <= 0:
+                self.errorHandling("文件写入错误，关闭下载")
+                return
             
-        #获取时间戳，因为我不知道qml如何获取，然后发射信号给qml更新界面
+        # 获取时间戳，因为我不知道qml如何获取，然后发射信号给qml更新界面
         self.curTime = int(time.time())
         self.curProgress = receiver + self.preProgress
-        # self.total = total + self.preProgress
+        # 下载完成的处理，不使用finish是因为那个信号啥都会触发
         if self.curProgress == self.total:
             self.success()
 
-    #开始下载文件，另外写这个接口为了qml文件使用方便
+    # 槽函数
+    # 开始下载文件，另外写这个接口为了qml文件使用方便
+    # url:下载的链接，目前只接受http
+    # filename:这个在下载链接中可以提取出文件名，不过有时候用户需要更改名字
+    # path:路径，用于生产文件.
     @pyqtSlot(str,str,str)
     def startDownload(self,url,filename,path):
+        # 防止UI发生异常
+        if self.downloading:
+            QApplication.beep()
+            return
+        # 需要重置参数，因为该函数是重新下载
         self.downloadParamReset()
+        # 先生成文件，再下载
         if  self.setFile(filename,path):
             if self.getUrl(url):
                 self.setDownloading(True)
                 self.startTime = int(time.time())
 
+    # 槽函数
+    # 暂停/继续下载
+    # flag:默认为TRUE
+    #      ture:暂停，使用abort终止下载，然后设置当前进度
+    #      false:继续下载，通过getUrl传入None实现.
     @pyqtSlot(bool)
     def pauseDown(self,flag = True):
         self.setPause(flag)
@@ -264,6 +342,8 @@ class Downloader(QObject):
         else:
             self.getUrl(None)
 
+    # 槽函数
+    # 停止下载，所有标志位重置为FALSE，关闭下载通道，关闭文件.
     @pyqtSlot()
     def stopDown(self):
         if self._isDownloading == True:
@@ -272,14 +352,17 @@ class Downloader(QObject):
             self.reply.abort()
         self._file.close()
 
+    # 槽函数
+    # 下载成功，设置标志位finish为true，然后停止下载.
     @pyqtSlot()
     def success(self):
         self.setFinish(True)
         self.stopDown()
 
+    # 槽函数
+    # 用于判断是否复制下载链接，用于自动下载.
     @pyqtSlot()
     def boardDataChanged(self):
-        #剪贴板内容发生改变
         if self.downloading:
             QApplication.beep()
             return
@@ -297,13 +380,14 @@ class Downloader(QObject):
         if len(text) > 1 and ( text[0] == "http" or text[0] == "https"):
             self.pasteUrlChanged.emit(mimeData.text())
     
+    # 槽函数
+    # 命名下载文件，提供接口给qml自动更改名字，重名则加(num)
     @pyqtSlot(str,str,result = str)
     def checkFileName(self,name,path):
-        #命名下载文件，提供接口给qml自动更改名字，重名则加(num)
         text = name.split('/')
         if len(text) <= 1:
             text = name.split('\\')
-
+        # 分离文件名和后缀名
         info = list()
         index = text[ -1 ].rfind('.')
         if index <= 0:

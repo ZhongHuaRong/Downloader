@@ -61,6 +61,8 @@ Item {
         }
 
         onFinishChanged:{
+            if(!downloader.finish)
+                return
             if(settingItem.decoFlag){
                 var str = ""
                 if(settingItem.usePWFlag){
