@@ -127,6 +127,7 @@ class Downloader(QObject):
         self._curTime = 0
         self._filename = ""
         self._url = ""
+        self._isRelative = True
 
     # 析构函数
     def __del__(self):
@@ -175,24 +176,7 @@ class Downloader(QObject):
         self.total = 0
         self.setPause(False)
         self.setFinish(False)
-
-    # 获取HTML里面的链接
-    # html:上一次下载所得到的文本，用于跳转链接
-    def getAllHtmlUrl(self,html):
-        urlList = list()
-        print(html)
-        key = 'href='
-        index = html.find(key)
-        while index > 0:
-            right = html.find('"',index + 2 + len(key) )
-            if right < 0 :
-                break
-            url = html[index + 1 + len(key):right]
-            # 消除多余的信息
-            url = url.replace('amp;','')
-            urlList.append(url)
-            index = html.find('href=',right)
-        return urlList
+        self._isRelative = True
         
     # 开始下载，设置下载信息
     # url:链接，如果为空则使用上一次留下来的URL，此功能用于暂停续传
@@ -204,9 +188,10 @@ class Downloader(QObject):
         if url == None:
             url = self.url
         else:
+            url = url.strip()
             self.url = url
         request.setUrl(QUrl(url))
-        
+
         if self.reply != None:
             self.reply.deleteLater()
         self.reply = self._manager.get(request)
@@ -245,30 +230,24 @@ class Downloader(QObject):
     # 槽函数
     # 把下载的内容写入文件
     # receive:已接收的字节数
-    # total:文件总大小，如果是跳转链接这里很有可能是-1
-    # 注意：这里的-1只是出于大部分的情况，如果没有则有可能需要手动
-    # 去下载跳转的连接
+    # total:文件总大小
     @pyqtSlot("qint64","qint64")
     def writeFile(self,receiver,total):
         print("receiver",receiver)
         print("total",total)
 
-        # 先判断-1的情况，因为这个不需要写入文件
-        if total == -1 and receiver > 0:
-            # 含有跳转链接
-            intext = QTextStream(self.reply)
-            urlList = self.getAllHtmlUrl(intext.readAll())
-            if len(urlList) != 0:
-                # 不为0则继续下载
-                print(urlList)
+        # # 先判断是否重定向
+        if self._isRelative:
+            u = self.reply.attribute(QNetworkRequest.RedirectionTargetAttribute)
+            if u != None:
+                self._isRelative = True
+                print(u)
                 self.reply.downloadProgress.disconnect(self.writeFile)
                 self.reply.abort()
-                # 目前只默认下载第一个链接
-                self.getUrl(urlList[0])
+                self.getUrl(u.toString())
                 return
             else:
-                # 如果没有发现下载链接则继续写入文件
-                pass
+                self._isRelative = False
         
         # 这里是刚开始下载的时候，total默认是0,设置下载的文件大小
         if self.total != total:
@@ -384,22 +363,21 @@ class Downloader(QObject):
     # 命名下载文件，提供接口给qml自动更改名字，重名则加(num)
     @pyqtSlot(str,str,result = str)
     def checkFileName(self,name,path):
-        text = name.split('/')
-        if len(text) <= 1:
-            text = name.split('\\')
+        text = QUrl(name.strip()).fileName()
+
         # 分离文件名和后缀名
         info = list()
-        index = text[ -1 ].rfind('.')
+        index = text.rfind('.')
         if index <= 0:
-            info = [ "未命名" , "tmp" ]
+            info = [ text, "" ]
         else:
-            info = [ text[-1][0:index] , text[-1][index + 1:] ]
+            info = [ text[0:index] , text[index + 1:] ]
 
         dirList = QDir(path).entryList()
         num = 1
-        filename = info[0] + "." + info[1]
+        filename = info[0] + ( '.' if len(info[1]) != 0 else '' ) + info[1]
         while filename in dirList:
-            filename = info[0] + "(" + str(num) + ")" + "." + info[1]
+            filename = info[0] + "(" + str(num) + ")" + ( '.' if len(info[1]) != 0 else '' ) + info[1]
             num += 1
 
         return filename

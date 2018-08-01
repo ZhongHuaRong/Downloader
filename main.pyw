@@ -1,9 +1,11 @@
 
 import sys
 import logging
+import urllib
+import urllib.request
 from Downloader import Downloader
 from Compress import Compress
-from PyQt5.Qt import QApplication,Qt,QUrl
+from PyQt5.Qt import QApplication,Qt,QUrl,QNetworkRequest,QNetworkAccessManager
 from PyQt5.QtQml import QQmlApplicationEngine,qmlRegisterType
 
 def main():
@@ -21,6 +23,7 @@ def main():
     engine.load(QUrl("./qml/main.qml"))
     if len(engine.rootObjects()) == 0:
         return -1
+
     return app.exec()
 
 main()
