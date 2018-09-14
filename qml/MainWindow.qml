@@ -1,39 +1,45 @@
 import QtQuick 2.8
+import QtQuick.Controls 1.4
 
 Item {
     id:mainWindow
 
-    DownloadPage{
-        id:page1
-        anchors.top: parent.top
-        anchors.topMargin: 0
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 0
-        anchors.left: parent.left
-        anchors.leftMargin: 0
-        width:page2.visible?parent.width/2:parent.width
-        onExpand: {
-            if(flag){
-                window.width *= 2
-                page2.visible = true
-            }
-            else{
-                window.width /= 2
-                page2.visible = false
+    TabView{
+        id:tab
+        anchors.fill:parent
+        Tab {
+            id:downloadTab
+            title: "正在下载(" + item.count + ")"
+            active: true
+            DownloadPage{
             }
         }
-        settingItem:page2
-    }
-
-    SettingPage{
-        id:page2
-        anchors.right: parent.right
-        anchors.rightMargin: 0
-        anchors.top: parent.top
-        anchors.topMargin: 0
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 0
-        width:parent.width/2
-        visible: false
+        Tab {
+            title: "已完成(" + 0 + ")"
+            active: true
+            Rectangle{}
+        }
+        Tab {
+            title: "已删除(" + 0 + ")"
+            active: true
+            Rectangle{}
+        }
+        Tab {
+            id:settingTab
+            title: "设置"
+            active: true
+            SettingPage{
+            }
+        }
+        Tab{
+            title:"新任务"
+            active: true
+            NewUrlPage{
+                settingItem: settingTab.item
+                onNewOne: {
+                    downloadTab.item.insertNew(url,path,fileName)
+                }
+            }
+        }
     }
 }

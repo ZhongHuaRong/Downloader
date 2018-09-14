@@ -11,5 +11,12 @@
         <file>qml/MainWindow.qml</file>
         <file>qml/SettingPage.qml</file>
         <file>qml/TextLoader.qml</file>
+        <file>123.jpg</file>
+        <file>app.ico</file>
+        <file>qml/ExitDialog.qml</file>
+        <file>qml/NewUrlPage.qml</file>
+        <file>qml/HttpSetting.qml</file>
+        <file>qml/MyScrollView.qml</file>
+        <file>qml/DownloadDelegate.qml</file>
     </qresource>
 </RCC>

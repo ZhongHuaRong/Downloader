@@ -16,6 +16,7 @@ Rectangle {
     property color enteredBorderColor: "#2248DD"
     property double leftMargin: 5
     property alias text: textInput.text
+    property alias readOnly: textInput.readOnly
 
     color: "#00000000"
 
