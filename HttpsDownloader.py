@@ -135,10 +135,9 @@ class HttpsDownloader(QObject):
         self._readAheadReply.downloadProgress.connect(self.onReadAhead_https)
         
     # 开始下载文件
-    def startDownload(self,url,path,fileName,startNum,fileTotal,isPause):
+    def startDownload(self,url,path,fileName,fileTotal,isPause):
         self.attributes.url = url
         self.attributes.path = path
-        self.attributes.setStartNum(startNum)
         self.attributes.setTotalFile(fileTotal)
 
         # 这里区分批量下载和单个文件下载

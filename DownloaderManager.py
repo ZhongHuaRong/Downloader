@@ -86,7 +86,7 @@ class DownloaderManager(QObject):
         elif self._type == DownloaderAttributes.UrlType.Unknown:
             return None
         elif self._type == DownloaderAttributes.UrlType.Https:
-            self._http.startDownload(self._url,self._path,self._fileName,self._startNum,self._fileTotal,isPause)
+            self._http.startDownload(self._url,self._path,self._fileName,self._fileTotal,isPause)
             return self._http.attributes
         else:
             return None

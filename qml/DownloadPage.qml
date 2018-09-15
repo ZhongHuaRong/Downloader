@@ -10,6 +10,7 @@ Item {
     property string pathList: ""
     property string nameList: ""
     property string stateList: ""
+    property string numList: ""
 
     function insertNew(url,path,name,totalFile){
         path += "/"
@@ -23,6 +24,7 @@ Item {
         urlAppend(url)
         pathAppend(path)
         nameAppend(name)
+        numAppend(totalFile)
         stateAppend("downloading")
     }
 
@@ -31,6 +33,7 @@ Item {
         pathRemove(index)
         nameRemove(index)
         stateRemove(index)
+        numRemove(index)
         listModel.remove(index)
     }
 
@@ -48,6 +51,10 @@ Item {
 
     function stateAppend(str){
         stateList += "|" + str
+    }
+
+    function numAppend(str){
+        numList += "|" + str
     }
 
     function urlRemove(index){
@@ -83,6 +90,15 @@ Item {
         for(var n = 1; n < l.length; n++){
             if(n != index + 1)
                 stateAppend(l[n])
+        }
+    }
+
+    function numRemove(index){
+        var l = numList.split('|')
+        numList = ""
+        for(var n = 1; n < l.length; n++){
+            if(n != index + 1)
+                numAppend(l[n])
         }
     }
 
@@ -134,13 +150,14 @@ Item {
         var ul = urlList.split('|')
         var pl = pathList.split('|')
         var nl = nameList.split('|')
+        var numl = numList.split('|')
 
         for(var n = 1; n < ul.length; n++){
             listModel.append({
                                  url:ul[n],
                                  path:pl[n],
                                  name:nl[n],
-                                 files:1
+                                 files:numl[n]
                              })
         }
     }
@@ -151,6 +168,7 @@ Item {
         property alias downloadPath: page.pathList
         property alias downloadName: page.nameList
         property alias downloadState: page.stateList
+        property alias downloadNum: page.numList
     }
 
     ListView{

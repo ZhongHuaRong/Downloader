@@ -42,8 +42,6 @@ class DownloaderAttributes(QObject):
 
         self._totalFile = 1
         self._finishFile = 0
-        #批量下载标志位
-        self._startNum = 1
 
     totalChanged = pyqtSignal()
     curProgressChanged = pyqtSignal()
@@ -153,10 +151,6 @@ class DownloaderAttributes(QObject):
     @pyqtProperty(int,notify = finishFileChanged)
     def finishFile(self):
         return self._finishFile
-    # # # # # # # # # # # # # # # # # # # startNum# # # # # # # # # # # # # # 
-    @pyqtProperty(int)
-    def startNum(self):
-        return self._startNum
     # 类的属性，提供给qml使用# # # # # # # # # # # # # # # # # # # # # # # 
 
     def setState(self,value):
@@ -181,11 +175,6 @@ class DownloaderAttributes(QObject):
         self._finishFile = self._finishFile + 1
         self.finishFileChanged.emit()
 
-    def setStartNum(self,value):
-        if self._startNum == value:
-            return
-        self._startNum = value
-    
     # 准备下载前的所有参数重置(下载标志位不重置)
     def downloadParamReset(self):
         self.curProgress = 0
@@ -254,7 +243,6 @@ class DownloaderAttributes(QObject):
         j["curProgress"] = self.curProgress
         j["totalFile"] = self.totalFile
         j["finishFile"] = self.finishFile
-        j["startNum"] = self._startNum
         j["fileSize"] = self._total
         return j
 
@@ -269,7 +257,6 @@ class DownloaderAttributes(QObject):
         self.curProgress = self.preProgress
         self.setTotalFile(j["totalFile"].toInt())
         self.setFinishFile(j["finishFile"].toInt())
-        self._startNum = j["startNum"].toInt()
         self.total = j["fileSize"].toInt()
 
     
