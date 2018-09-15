@@ -86,3 +86,10 @@ class Setting(QObject):
             num += 1
 
         return filename
+
+    # 批量下载的时候，获取文件夹的名字
+    @pyqtSlot(str, result = str)
+    def getFolderName(self,url):
+        u = QUrl(url)
+        
+        return u.path()[:len(u.path()) - len(u.fileName())]

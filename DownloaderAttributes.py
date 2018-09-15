@@ -35,6 +35,7 @@ class DownloaderAttributes(QObject):
         self._startTime = 0
         self._curTime = 0
 
+        self._taskname = ""
         self._filename = ""
         self._url = ""
         self._path = ""
@@ -51,6 +52,7 @@ class DownloaderAttributes(QObject):
     startTimeChanged = pyqtSignal()
     urlChanged = pyqtSignal()
     fileNameChanged = pyqtSignal()
+    taskNameChanged = pyqtSignal()
     pathChanged = pyqtSignal()
     totalFileChanged = pyqtSignal()
     finishFileChanged = pyqtSignal()
@@ -129,6 +131,15 @@ class DownloaderAttributes(QObject):
     def fileName(self, value):
         self._filename = value
         self.fileNameChanged.emit()
+    # # # # # # # # # # # # # # # # # taskName# # # # # # # # # # # # # # # # # 
+    @pyqtProperty(str,notify = taskNameChanged)
+    def taskName(self):
+        return self._taskname
+
+    @taskName.setter
+    def taskName(self, value):
+        self._taskname = value
+        self.taskNameChanged.emit()
     # # # # # # # # # # # # # # # # # # # state # # # # # # # # # # # # # # # #
     # 这里特别注明一下，enum在qml无法使用，所以采用string的方式
     @pyqtProperty(str,notify = stateChanged)

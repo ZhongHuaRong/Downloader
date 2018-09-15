@@ -37,7 +37,7 @@ Item {
             NewUrlPage{
                 settingItem: settingTab.item
                 onNewOne: {
-                    downloadTab.item.insertNew(url,path,fileName)
+                    downloadTab.item.insertNew(url,path,fileName,pages)
                 }
             }
         }

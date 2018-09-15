@@ -11,13 +11,14 @@ Item {
     property string nameList: ""
     property string stateList: ""
 
-    function insertNew(url,path,name){
+    function insertNew(url,path,name,totalFile){
         path += "/"
-        console.debug(url,path,name)
+        console.debug(url,path,name,totalFile)
         listModel.append({
                              url:url,
                              path:path,
-                             name:name
+                             name:name,
+                             files:totalFile
                          })
         urlAppend(url)
         pathAppend(path)
@@ -138,7 +139,8 @@ Item {
             listModel.append({
                                  url:ul[n],
                                  path:pl[n],
-                                 name:nl[n]
+                                 name:nl[n],
+                                 files:1
                              })
         }
     }
@@ -196,11 +198,10 @@ Item {
                 }
 
                 Component.onCompleted: {
-                    downloaderManager.setFileTotal(1)
+                    downloaderManager.setFileTotal(files)
                     downloaderManager.setPath(path)
                     downloaderManager.setUrl(url)
                     downloaderManager.setFileName(name)
-                    // 提前获取下载状态，因为获取attribute的时候默认是正在下载的情况
                     var state = page.getState(index) =="pause"
                     attributes = downloaderManager.downloadFile(state)
                 }
@@ -231,7 +232,7 @@ Item {
 
                 TextLoader{
                     id:fileNameText
-                    text:attributes?attributes.fileName:""
+                    text:attributes?attributes.taskName:""
                     anchors.top: parent.top
                     anchors.topMargin: 10
                 }
@@ -275,20 +276,23 @@ Item {
                             return "文件可能丢失"
                         case "networkError":
                             return "网络出现错误"
+                        default:
+                            return "未知状态"
                         }
                     }
                     color:{
                         switch(delegateItem.state){
-                        case "NoDownload":
-                        case "downloading":
-                        case "pause":
-                        case "finish":
-                            return "#445266"
                         case "downloadError":
                         case "fileOpenError":
                         case "fileWriteError":
                         case "networkError":
                             return "#ff0000"
+                        case "NoDownload":
+                        case "downloading":
+                        case "pause":
+                        case "finish":
+                        default:
+                            return "#445266"
                         }
                     }
                     anchors.top: fileNameText.bottom

@@ -58,6 +58,14 @@ class HttpsDownloader(QObject):
     def changeState(self,state):
         self.attributes.setState(state)
 
+    # 这里判断目录是否存在，不存在则创建
+    def isDirExist(self,fullPath):
+        dir = QDir(fullPath)
+        if dir.exists():
+            return True
+        else:
+            return dir.mkpath(fullPath)
+
     # 开始下载，设置下载信息
     def _getSource(self):
         if len(self._jumpUrl) == 0:
@@ -89,6 +97,8 @@ class HttpsDownloader(QObject):
     # 在这里重置文件大小
     def _openTemp(self):
         tempname = self.attributes.fileName + '.tmp'
+        if self._tmpFile.isOpen():
+            self._tmpFile.close()
         self._tmpFile.setFileName(self.attributes.path + tempname)
         self._tmpFile.open(QFile.Append)
         self._tmpFile.seek(self.attributes.preProgress)
@@ -136,6 +146,8 @@ class HttpsDownloader(QObject):
             # 这里不需要重新计算文件名，因为在UI已经确认过了，这里如果文件名相同则会是
             # 继续下载，所以不存在会文件名相同
             self.attributes.fileName = fileName
+            # 单个文件下载则任务名和文件名同名
+            self.attributes.taskName = fileName
             # 打开配置文件并保存,这一步放在设置文件名后执行
             self._openConfig()
             if self._loadConfig():
@@ -151,13 +163,24 @@ class HttpsDownloader(QObject):
             else:
                 self.changeState(DownloaderAttributes.States.pause)
         else:
-            self.attributes.path = path + fileName + "\\"
-            # 设置为另一个接口主要的意图在于，多个文件下载完都会调用一次该接口
+            self.attributes.path = path[:-2] + fileName
+            # 生成目录
+            self.isDirExist(self.attributes.path)
+            # 重置文件名，用于生成配置文件而已
+            self.attributes.fileName = self.attributes.checkFileName(fileName.split('/')[-2],self.attributes.path)
+            # 多个文件下载则是文件夹的名字
+            self.attributes.taskName = self.attributes.fileName
+            # 打开配置文件并保存,这一步放在设置文件名后执行
+            self._openConfig()
+            if self._loadConfig():
+                # 存在历史纪录
+                pass
+            else:
+                self._saveConfig()
             if not isPause:
                 # 如果不是暂停，则下载
+                # 设置为另一个接口主要的意图在于，多个文件下载完都会调用一次该接口
                 self._download_mult()
-
-    # 判断是否是续传，返回判断结果
             
     # 下载单个文件
     # total用来表示文件大小，这样的优点在于预加载就可以显示文件大小的信息
@@ -172,6 +195,14 @@ class HttpsDownloader(QObject):
 
     # 下载多个文件
     def _download_mult(self):
+        name = self.attributes.url.split('/')[-1].split('.')
+        newNum = str(int(name[0]) + self.attributes.finishFile).zfill(len(name[0]))
+        newNum = newNum + "." + name[1]
+        self.attributes.fileName = newNum
+        url = self.attributes.url[:self.attributes.url.rfind('/') + 1] + newNum
+        self._openTemp()
+        print(url)
+        self._readAhead_https(url)
         pass
 
     # 把数据写入文件的指令

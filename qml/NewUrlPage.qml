@@ -9,7 +9,7 @@ Item {
     property var settingItem: ""
     property int  type: 0
 
-    signal newOne(string url,string path,string fileName)
+    signal newOne(string url,string path,string fileName,string pages)
 
     function getNewUrl(url){
         sourceEdit.text = url
@@ -29,9 +29,9 @@ Item {
             return 0
     }
 
-    function startDownload(name){
+    function startDownload(name,pages){
         //该信号在多个文件下载时优化
-        urlPage.newOne(sourceEdit.text,targetEdit.text,name)
+        urlPage.newOne(sourceEdit.text,targetEdit.text,name,pages)
     }
 
     Settings {
