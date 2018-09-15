@@ -11,9 +11,15 @@ Item {
     function setFileName(name,path){
         httpItem.fileName = setting.checkFileName(name,path)
         httpItem.path = path
+        downloadButton.enabled = true
         if(settingItem.downloadFlag){
-            downloadButton.clicked("")
+            downloadButtonClick()
         }
+    }
+
+    function downloadButtonClick(){
+        httpItem.download(fileName)
+        downloadButton.enabled = false
     }
 
     MyScrollView{
@@ -50,7 +56,7 @@ Item {
             CPushButton{
                 id:downloadButton
                 text:"下载"
-                onClicked: httpItem.download(fileName)
+                onClicked: httpItem.downloadButtonClick()
             }
 
         }

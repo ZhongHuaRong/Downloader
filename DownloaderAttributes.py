@@ -254,7 +254,8 @@ class DownloaderAttributes(QObject):
         self.setString2State(j["state"].toString())
         self.url = j["url"].toString()
         self.fileName = j["filename"].toString()
-        self.preProgress = j["curProgress"].toString()
+        self.preProgress = j["curProgress"].toInt()
+        self.curProgress = self.preProgress
         self.setTotalFile(j["totalFile"].toInt())
         self.setFinishFile(j["finishFile"].toInt())
         self._startNum = j["startNum"].toInt()
@@ -268,7 +269,34 @@ class DownloaderAttributes(QObject):
         dir = QDir(path)
         return filename in dir.entryList()
 
-    # 命名下载文件，重名则加(num),下载未完成的临时文件名也会判断是否重名
+    # 命名下载文件，重名则加(num),这个是连tmp文件也一并检查
+    def checkFileNameAndTemp(self,name,path):
+        # 分离文件名和后缀名
+        info = list()
+        index = name.rfind('.')
+        if index <= 0:
+            info = [ name, "" ]
+        else:
+            info = [ name[0:index] , name[index + 1:] ]
+
+        dirList = QDir(path).entryList()
+        filename = name
+        tempname = filename + '.tmp'
+        cfgname = tempname + '.cfg'
+        if not filename in dirList and not tempname in dirList and not cfgname in dirList:
+            return filename
+        num = 1
+        filename = info[0] + ( '.' if len(info[1]) != 0 else '' ) + info[1]
+        while filename in dirList or tempname in dirList or cfgname in dirList:
+            filename = info[0] + "(" + str(num) + ")" + ( '.' if len(info[1]) != 0 else '' ) + info[1]
+            tempname = filename + '.tmp'
+            cfgname = tempname + '.cfg'
+            num += 1
+
+        return filename
+
+    
+    # 命名下载文件，重名则加(num),这个是只检查当前文件名
     def checkFileName(self,name,path):
         # 分离文件名和后缀名
         info = list()
@@ -279,12 +307,13 @@ class DownloaderAttributes(QObject):
             info = [ name[0:index] , name[index + 1:] ]
 
         dirList = QDir(path).entryList()
+        filename = name
+        if not filename in dirList:
+            return filename
         num = 1
         filename = info[0] + ( '.' if len(info[1]) != 0 else '' ) + info[1]
-        tempname = filename + '.tmp'
-        while filename in dirList or tempname in dirList:
+        while filename in dirList:
             filename = info[0] + "(" + str(num) + ")" + ( '.' if len(info[1]) != 0 else '' ) + info[1]
-            tempname = filename + '.tmp'
             num += 1
 
         return filename

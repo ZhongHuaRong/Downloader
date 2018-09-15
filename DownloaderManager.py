@@ -14,12 +14,25 @@ class DownloaderManager(QObject):
 
         self._manager = QNetworkAccessManager(self)
         self._http = HttpsDownloader(self)
+        # self._thread = QThread()
+        # self._manager.moveToThread(self._thread)
+        # self._http.moveToThread(self._thread)
         
+        self._type = DownloaderAttributes.UrlType.Null
         self._url = ""
         self._path = ""
         self._startNum = 0
         self._fileTotal = 1
         self._fileName = ""
+
+    # 析构函数
+    def __del__(self):
+        # if self._thread:
+        #     if self._thread.isRunning():
+        #         self._thread.exit()
+        #         self._thread.wait()
+        #     self._thread.deleteLater()
+        pass
 
     # 设置下载路径
     @pyqtSlot(str)
@@ -62,19 +75,27 @@ class DownloaderManager(QObject):
         else:
             return DownloaderAttributes.UrlType.Unknown
 
-    # 下载单个文件
-    # path:下载路径
-    # url:下载链接
-    @pyqtSlot(result = DownloaderAttributes)
-    def downloadFile(self):
-        type = self.urlType(self._url)
+    # 下载文件
+    # isPause:启动的时候是暂停的还是直接下载
+    @pyqtSlot(bool,result = DownloaderAttributes)
+    def downloadFile(self,isPause):
+        self._type = self.urlType(self._url)
 
-        if type == DownloaderAttributes.UrlType.Null:
+        if self._type == DownloaderAttributes.UrlType.Null:
             return None
-        elif type == DownloaderAttributes.UrlType.Unknown:
+        elif self._type == DownloaderAttributes.UrlType.Unknown:
             return None
-        elif type == DownloaderAttributes.UrlType.Https:
-            self._http.startDownload(self._url,self._path,self._fileName,self._startNum,self._fileTotal)
+        elif self._type == DownloaderAttributes.UrlType.Https:
+            self._http.startDownload(self._url,self._path,self._fileName,self._startNum,self._fileTotal,isPause)
             return self._http.attributes
         else:
             return None
+
+    # 槽函数
+    # 暂停/继续下载
+    @pyqtSlot()
+    def pauseDown(self):
+        if self._type == DownloaderAttributes.UrlType.Unknown:
+            return None
+        elif self._type == DownloaderAttributes.UrlType.Https:
+            self._http.pauseDown()

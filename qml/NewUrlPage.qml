@@ -75,13 +75,13 @@ Item {
                 case 1:
                     //http类型
                     loader.source = "./HttpSetting.qml"
+                    loader.item.download.connect(urlPage.startDownload)
+                    loader.item.setFileName(sourceEdit.text,targetEdit.text)
                     break;
                 case 2:
                     //BT类型
                     break;
                 }
-
-//                filemsgItem.fileName = downloader.checkFileName(sourceEdit.text,targetEdit.text)
             }
         }
 
@@ -133,22 +133,20 @@ Item {
         anchors.bottom:parent.bottom
         anchors.bottomMargin: 0
 
-        onLoaded: {
-            switch(type){
-            case 0:
-                //未知类型或者未填写
-                loader.source = ""
-                break;
-            case 1:
-                //http类型
-                loader.item.download.connect(urlPage.startDownload)
-                loader.item.setFileName(sourceEdit.text,targetEdit.text)
-                break;
-            case 2:
-                //BT类型
-                break;
-            }
-        }
+//        onLoaded: {
+//            switch(type){
+//            case 0:
+//                //未知类型或者未填写
+//                loader.source = ""
+//                break;
+//            case 1:
+//                //http类型
+//                break;
+//            case 2:
+//                //BT类型
+//                break;
+//            }
+//        }
     }
 
     FileDialog{

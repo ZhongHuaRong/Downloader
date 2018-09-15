@@ -1,10 +1,15 @@
 import QtQuick 2.8
 import zm.pyqt.Downloader 1.0
+import Qt.labs.settings 1.0
 
 Item {
     id:page
 
     property alias count: listView.count
+    property string urlList: ""
+    property string pathList: ""
+    property string nameList: ""
+    property string stateList: ""
 
     function insertNew(url,path,name){
         path += "/"
@@ -14,6 +19,87 @@ Item {
                              path:path,
                              name:name
                          })
+        urlAppend(url)
+        pathAppend(path)
+        nameAppend(name)
+        stateAppend("downloading")
+    }
+
+    function removeFinish(index){
+        urlRemove(index)
+        pathRemove(index)
+        nameRemove(index)
+        stateRemove(index)
+        listModel.remove(index)
+    }
+
+    function urlAppend(str){
+        urlList += "|" + str
+    }
+
+    function pathAppend(str){
+        pathList += "|" + str
+    }
+
+    function nameAppend(str){
+        nameList += "|" + str
+    }
+
+    function stateAppend(str){
+        stateList += "|" + str
+    }
+
+    function urlRemove(index){
+        var l = urlList.split('|')
+        urlList = ""
+        for(var n = 1; n < l.length; n++){
+            if(n != index + 1)
+                urlAppend(l[n])
+        }
+    }
+
+    function pathRemove(index){
+        var l = pathList.split('|')
+        pathList = ""
+        for(var n = 1; n < l.length; n++){
+            if(n != index + 1)
+                pathAppend(l[n])
+        }
+    }
+
+    function nameRemove(index){
+        var l = nameList.split('|')
+        nameList = ""
+        for(var n = 1; n < l.length; n++){
+            if(n != index + 1)
+                nameAppend(l[n])
+        }
+    }
+
+    function stateRemove(index){
+        var l = stateList.split('|')
+        stateList = ""
+        for(var n = 1; n < l.length; n++){
+            if(n != index + 1)
+                stateAppend(l[n])
+        }
+    }
+
+    function stateChanged(index,state){
+        var l = stateList.split('|')
+        stateList = ""
+        for(var n = 1; n < l.length; n++){
+            if(n == index + 1)
+                stateAppend(state)
+            else
+                stateAppend(l[n])
+        }
+    }
+
+    function getState(index){
+        console.debug(stateList)
+        var l = stateList.split('|')
+        return l[index + 1]
     }
 
     function changeToString(value){
@@ -42,6 +128,29 @@ Item {
         return value.toFixed(2) + " " + m
     }
 
+    // 加载历史信息
+    Component.onCompleted: {
+        var ul = urlList.split('|')
+        var pl = pathList.split('|')
+        var nl = nameList.split('|')
+
+        for(var n = 1; n < ul.length; n++){
+            listModel.append({
+                                 url:ul[n],
+                                 path:pl[n],
+                                 name:nl[n]
+                             })
+        }
+    }
+
+    Settings{
+        id:settings
+        property alias downloadUrl: page.urlList
+        property alias downloadPath: page.pathList
+        property alias downloadName: page.nameList
+        property alias downloadState: page.stateList
+    }
+
     ListView{
         id:listView
         anchors.fill: parent
@@ -57,7 +166,7 @@ Item {
                 id:delegateItem
                 width:listView.width - 10
                 height:80
-                color:index == listView.currentIndex ? "#98F5FF" : "white"
+                //color:index == listView.currentIndex ? "#98F5FF" : "white"
                 anchors.left: parent.left
                 anchors.leftMargin: 5
 
@@ -72,12 +181,28 @@ Item {
                 property int totalFile: attributes?attributes.totalFile:0
                 property var attributes: 0
 
+                onStateChanged: {
+                    if(delegateItem.state =="")
+                        return
+                    page.stateChanged(index,delegateItem.state)
+                    if(delegateItem.state != "downloading"){
+                        if(delegateItem.state == "finish"){
+                            page.removeFinish(index)
+                            return
+                        }
+                        bar.stop()
+                    }
+
+                }
+
                 Component.onCompleted: {
                     downloaderManager.setFileTotal(1)
                     downloaderManager.setPath(path)
                     downloaderManager.setUrl(url)
                     downloaderManager.setFileName(name)
-                    attributes = downloaderManager.downloadFile()
+                    // 提前获取下载状态，因为获取attribute的时候默认是正在下载的情况
+                    var state = page.getState(index) =="pause"
+                    attributes = downloaderManager.downloadFile(state)
                 }
 
                 DownloaderManager{
@@ -106,7 +231,7 @@ Item {
 
                 TextLoader{
                     id:fileNameText
-                    text:name
+                    text:attributes?attributes.fileName:""
                     anchors.top: parent.top
                     anchors.topMargin: 10
                 }
@@ -119,9 +244,8 @@ Item {
                     anchors.rightMargin: 20
                     anchors.left: parent.left
                     anchors.leftMargin: 0
-                    height:30
+                    height:20
                     value:curProgress / total * 100
-                    width:parent.width - downloadSpeed.width - 20
 
                     TextLoader{
                         id:percentage
@@ -134,7 +258,39 @@ Item {
 
                 TextLoader{
                     id:downState
-                    text:state
+                    text:{
+                        switch(delegateItem.state){
+                        case "downloadError":
+                            return "下载出现错误"
+                        case "NoDownload":
+                            return "未开始下载  "
+                        case "downloading":
+                            return "正在下载中  "
+                        case "pause":
+                            return "暂停任务    "
+                        case "finish":
+                            return "下载完成    "
+                        case "fileOpenError":
+                        case "fileWriteError":
+                            return "文件可能丢失"
+                        case "networkError":
+                            return "网络出现错误"
+                        }
+                    }
+                    color:{
+                        switch(delegateItem.state){
+                        case "NoDownload":
+                        case "downloading":
+                        case "pause":
+                        case "finish":
+                            return "#445266"
+                        case "downloadError":
+                        case "fileOpenError":
+                        case "fileWriteError":
+                        case "networkError":
+                            return "#ff0000"
+                        }
+                    }
                     anchors.top: fileNameText.bottom
                     anchors.topMargin: 5
                     anchors.right: downloadSpeed.left
@@ -152,15 +308,20 @@ Item {
 
                 CPushButton{
                     id:stateButton
-                    text:delegateItem.state
+                    text:{
+                        if(delegateItem.state == "downloading")
+                            return "暂停"
+                        else
+                            return "继续"
+                    }
                     width:50
-                    height:30
+                    height:20
                     anchors.top: fileNameText.bottom
                     anchors.topMargin: 5
                     anchors.right: parent.right
                     anchors.rightMargin: 0
                     onClicked: {
-                        //
+                        downloaderManager.pauseDown()
                     }
                 }
 

@@ -62,7 +62,7 @@ class HttpsDownloader(QObject):
     def _getSource(self):
         if len(self._jumpUrl) == 0:
             # 软件重启时并没有该跳转链接，需要重新获取
-            return
+            return False
         request = QNetworkRequest()
         request.setRawHeader(str("Range").encode(),str("bytes=" + str(self.attributes.preProgress) + "-").encode())
 
@@ -72,8 +72,8 @@ class HttpsDownloader(QObject):
         # 另一个原因是在多个文件下载时，这个是保存转换后的url
         request.setUrl(QUrl(self._jumpUrl))
 
-        if self._reply != None:
-            self._reply.deleteLater()
+        # if self._reply != None:
+        #     self._reply.deleteLater()
         self._reply = self._manager.get(request)
         self._reply.downloadProgress.connect(self.writeFile)
         self._reply.finished.connect(self.downloadError)
@@ -86,10 +86,11 @@ class HttpsDownloader(QObject):
         self._configFile.open(QFile.ReadWrite)
 
     # 打开临时文件，用于保存下载信息
+    # 在这里重置文件大小
     def _openTemp(self):
         tempname = self.attributes.fileName + '.tmp'
         self._tmpFile.setFileName(self.attributes.path + tempname)
-        self._tmpFile.open(QFile.WriteOnly)
+        self._tmpFile.open(QFile.Append)
         self._tmpFile.seek(self.attributes.preProgress)
 
     # 保存config
@@ -124,31 +125,48 @@ class HttpsDownloader(QObject):
         self._readAheadReply.downloadProgress.connect(self.onReadAhead_https)
         
     # 开始下载文件
-    def startDownload(self,url,path,fileName,startNum,fileTotal):
+    def startDownload(self,url,path,fileName,startNum,fileTotal,isPause):
         self.attributes.url = url
         self.attributes.path = path
         self.attributes.setStartNum(startNum)
         self.attributes.setTotalFile(fileTotal)
-        self.changeState(DownloaderAttributes.States.downloading)
 
         # 这里区分批量下载和单个文件下载
         if fileTotal == 1:
-            # 这里不需要重新计算文件名，因为在UI做了初步计算
+            # 这里不需要重新计算文件名，因为在UI已经确认过了，这里如果文件名相同则会是
+            # 继续下载，所以不存在会文件名相同
             self.attributes.fileName = fileName
             # 打开配置文件并保存,这一步放在设置文件名后执行
             self._openConfig()
-            self._saveConfig()
-            self._readAhead_https(url)
+            if self._loadConfig():
+                # 存在历史纪录
+                pass
+            else:
+                self._saveConfig()
+            self._openTemp()
+            if not isPause:
+                # 如果不是暂停，则下载
+                self.changeState(DownloaderAttributes.States.downloading)
+                self._readAhead_https(url)
+            else:
+                self.changeState(DownloaderAttributes.States.pause)
         else:
             self.attributes.path = path + fileName + "\\"
             # 设置为另一个接口主要的意图在于，多个文件下载完都会调用一次该接口
-            self._download_mult()
+            if not isPause:
+                # 如果不是暂停，则下载
+                self._download_mult()
+
+    # 判断是否是续传，返回判断结果
             
     # 下载单个文件
     # total用来表示文件大小，这样的优点在于预加载就可以显示文件大小的信息
     def _download_signal(self,total):
-        self.attributes.total = total
-        self._openTemp()
+        if total > self.attributes.total:
+            # 如果下载的大小大于记载的大小
+            # 这个情况应该在新增任务时出现
+            self.attributes.total = total
+            self._tmpFile.resize(total)
         self._getSource()
         pass
 
@@ -191,8 +209,12 @@ class HttpsDownloader(QObject):
         
         # 这里是暂停续传部分，因为暂停发生后，reply.abort()
         # 关闭下载通道，但是还是会触发这个槽函数
-        if self.attributes.state == DownloaderAttributes.States.pause:
+        if self.attributes._state == DownloaderAttributes.States.pause:
             # 暂停触发，不处理后面接受到的字节数
+            if self._reply.isRunning():
+                # 如果reply还没有关闭则关闭下载通道
+                # 这个在软件重开续传和预读头文件的时候预防下载通道还没关闭的情况
+                self._reply.abort()
             return
         elif not self._reply.isOpen():
             # 下载完成触发
@@ -207,13 +229,17 @@ class HttpsDownloader(QObject):
             data = self._reply.readAll()
             if len(data) == 0:
                 #  没有数据读取
-                self.success()
+                if self._reply.error() == QNetworkReply.NoError:
+                    self.success()
+                else:
+                    self.changeState(DownloaderAttributes.States.networkError)
                 return
             if self._tmpFile.writeData(data) <= 0:
                 self.changeState(DownloaderAttributes.States.fileWriteError)
                 return
             
         # 获取时间戳，因为我不知道qml如何获取，然后发射信号给qml更新界面
+        self._tmpFile.flush()
         self.attributes.curTime = int(time.time())
         self.attributes.curProgress = receive + self.attributes.preProgress
         self._saveConfig()
@@ -223,19 +249,17 @@ class HttpsDownloader(QObject):
 
     # 槽函数
     # 暂停/继续下载
-    # flag:默认为TRUE
-    #      ture:暂停，使用abort终止下载，然后设置当前进度
-    #      false:继续下载，通过getUrl传入None实现.
     @pyqtSlot(bool)
-    def pauseDown(self,flag = True):
-        if flag:
+    def pauseDown(self):
+        if self.attributes._state == DownloaderAttributes.States.downloading:
+            # 正在下载，应该处理暂停
             self.changeState(DownloaderAttributes.States.pause)
             if self._reply != None:
                 self._reply.abort()
             self.attributes.preProgress = self.attributes.curProgress
         else:
             self.changeState(DownloaderAttributes.States.downloading)
-            self._getSource()
+            self._readAhead_https(self.attributes.url)
 
     # 槽函数
     # 停止下载，所有标志位重置为FALSE，关闭下载通道，关闭文件.
@@ -285,8 +309,8 @@ class HttpsDownloader(QObject):
                 self._readAhead_https(self.attributes.url)
             elif receive == total:
                 # 预加载时下载完成的情况
-                self._openTemp()
                 self._tmpFile.writeData(msg)
+                self._tmpFile.flush()
                 self.success()
                 pass
             else:
