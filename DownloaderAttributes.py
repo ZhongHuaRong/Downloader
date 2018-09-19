@@ -183,9 +183,6 @@ class DownloaderAttributes(QObject):
         self.curTime = time.time()
         self.startTime = self.curTime
         self.total = 0
-        self.filename = ""
-        self.url = ""
-        self.path = ""
 
     #将enum转为string
     def getType2String(self):

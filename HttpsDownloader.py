@@ -146,6 +146,9 @@ class HttpsDownloader(QObject):
                 # 如果不是暂停，则下载
                 # 设置为另一个接口主要的意图在于，多个文件下载完都会调用一次该接口
                 self._download_mult()
+                self.changeState(DownloaderAttributes.States.downloading)
+            else:
+                self.changeState(DownloaderAttributes.States.pause)
             
     # 下载单个文件
     # total用来表示文件大小，这样的优点在于预加载就可以显示文件大小的信息
@@ -164,6 +167,7 @@ class HttpsDownloader(QObject):
 
     # 下载多个文件
     def _download_mult(self):
+        # 任务开始前先重置下载进度
         name = self.attributes.url.split('/')[-1].split('.')
         newNum = str(int(name[0]) + self.attributes.finishFile).zfill(len(name[0]))
         newNum = newNum + "." + name[1]
@@ -218,18 +222,21 @@ class HttpsDownloader(QObject):
                 self.changeState(DownloaderAttributes.States.fileOpenError)
                 return
         
-        # 这里是暂停续传部分，因为暂停发生后，reply.abort()
-        # 关闭下载通道，但是还是会触发这个槽函数
+        # 这里是暂停续传部分，因为更改了暂停机制，在暂停前取消信号连接，
+        # 所以这里基本不存在触发的情况
         if self.attributes._state == DownloaderAttributes.States.pause:
             # 暂停触发，不处理后面接受到的字节数
             if self._reply.isRunning():
                 # 如果reply还没有关闭则关闭下载通道
                 # 这个在软件重开续传和预读头文件的时候预防下载通道还没关闭的情况
+                self._reply.downloadProgress.disconnect(self.writeFile)
                 self._reply.abort()
             return
         elif not self._reply.isOpen():
-            # 下载完成触发
             if self.attributes.curProgress == self.attributes.total:
+                # 其实这里已经排除abort触发的情况因为在abort之前已经断开信号连接
+                # 这里的条件判断以及输出是用于日志输出
+                print("abort 触发")
                 pass
             else:
                 # 如果不是因为暂停而关闭reply的通道的情况则需要通报用户下载失败
@@ -265,26 +272,27 @@ class HttpsDownloader(QObject):
         if self.attributes._state == DownloaderAttributes.States.downloading:
             # 正在下载，应该处理暂停
             self.changeState(DownloaderAttributes.States.pause)
-            if self._reply != None:
+            if self._reply != None and self._reply.isRunning():
+                self._reply.downloadProgress.disconnect(self.writeFile)
                 self._reply.abort()
             self.attributes.preProgress = self.attributes.curProgress
         else:
             self.changeState(DownloaderAttributes.States.downloading)
-            self._download_signal(self.attributes.url)
-
-    # 槽函数
-    # 停止下载，所有标志位重置为FALSE，关闭下载通道，关闭文件.
-    @pyqtSlot()
-    def stopDown(self):
-        if self._reply != None:
-            self._reply.abort()
-            self._reply.deleteLater()
+            if self.attributes.totalFile > 1:
+                self._download_mult()
+            else:
+                self._download_signal(self.attributes.url)
 
     # 槽函数
     # 下载成功，设置标志位finish为true，然后停止下载.
     @pyqtSlot()
     def success(self):
         self.attributes.completedOne()
+        # 虽然下载完成，但是还是需要关闭通道
+        # 这里解决了只能下载第一个文件的情况，也解决了下载完成所有任务后，多下载两个文件
+        # 貌似是下载文件时多次触发success，所以要断开信号和关闭下载通道
+        self._reply.downloadProgress.disconnect(self.writeFile)
+        self._reply.abort()
         name = self.attributes.checkFileName(self.attributes.fileName,self.attributes.path)
         self._tmpFile.rename(self.attributes.path + name)
         self._tmpFile.close()
@@ -293,12 +301,13 @@ class HttpsDownloader(QObject):
             pass
         else:
             # 这个情况只有下载多个文件的时候才会出现
+            # 重置多个文件下载时的参数
+            self.attributes.downloadParamReset()
             self._saveConfig()
             self._download_mult()
             return
         self._configFile.remove()
         self.changeState(DownloaderAttributes.States.finish)
-        self.stopDown()
     
     # 删除这次任务，当然，这里只是关闭文件而已
     # 正真删除操作在setting类
