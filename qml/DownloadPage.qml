@@ -335,6 +335,8 @@ Item {
                             return "文件可能丢失"
                         case "networkError":
                             return "网络出现错误"
+                        case "totalLessThanZero":
+                            return "文件大小识别错误"
                         default:
                             return "未知状态"
                         }

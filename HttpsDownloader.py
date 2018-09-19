@@ -22,7 +22,6 @@ class HttpsDownloader(QObject):
         self._tmpFile = QFile(self)
         self._configFile = QFile(self)
         self._reply = None
-        self._readAheadReply = None
 
         # 保存跳转后的url
         self._jumpUrl = ""
@@ -36,8 +35,6 @@ class HttpsDownloader(QObject):
         #     self._configFile.close()
         # if self._reply:
         #     self._reply.deleteLater()
-        # if self._readAheadReply:
-        #     self._readAheadReply.deleteLater()
         pass
 
     # 类的属性，提供给qml使用# # # # # # # # # # # # # # # # # # # # # # 
@@ -65,27 +62,6 @@ class HttpsDownloader(QObject):
             return True
         else:
             return dir.mkpath(fullPath)
-
-    # 开始下载，设置下载信息
-    def _getSource(self):
-        if len(self._jumpUrl) == 0:
-            # 软件重启时并没有该跳转链接，需要重新获取
-            return False
-        request = QNetworkRequest()
-        request.setRawHeader(str("Range").encode(),str("bytes=" + str(self.attributes.preProgress) + "-").encode())
-
-        # 这里采用jumpUrl有两个原因，
-        # 一个是在于每个url都会预先加载跳转链接，如果没有也会设置成url，有的话
-        # jumpUrl就是指向正确的地址
-        # 另一个原因是在多个文件下载时，这个是保存转换后的url
-        request.setUrl(QUrl(self._jumpUrl))
-
-        # if self._reply != None:
-        #     self._reply.deleteLater()
-        self._reply = self._manager.get(request)
-        self._reply.downloadProgress.connect(self.writeFile)
-        self._reply.finished.connect(self.downloadError)
-        return True
     
     # 打开配置文件
     def _openConfig(self):
@@ -123,17 +99,6 @@ class HttpsDownloader(QObject):
         j = QJsonDocument.fromJson(cfg).object()
         self.attributes.fromJson(j)
         return True
-
-    
-    # HTTPS类型的文件预下载，用于判断是否含有跳转或者其他情况
-    # url:下载链接
-    def _readAhead_https(self,url):
-        self._jumpUrl = url
-        request = QNetworkRequest()
-        # request.setAttribute(QNetworkRequest.FollowRedirectsAttribute,True)
-        request.setUrl(QUrl(url))
-        self._readAheadReply = self._manager.get(request)
-        self._readAheadReply.downloadProgress.connect(self.onReadAhead_https)
         
     # 开始下载文件
     def startDownload(self,url,path,fileName,fileTotal,isPause):
@@ -159,7 +124,7 @@ class HttpsDownloader(QObject):
             if not isPause:
                 # 如果不是暂停，则下载
                 self.changeState(DownloaderAttributes.States.downloading)
-                self._readAhead_https(url)
+                self._download_signal(url)
             else:
                 self.changeState(DownloaderAttributes.States.pause)
         else:
@@ -184,14 +149,18 @@ class HttpsDownloader(QObject):
             
     # 下载单个文件
     # total用来表示文件大小，这样的优点在于预加载就可以显示文件大小的信息
-    def _download_signal(self,total):
-        if total > self.attributes.total:
-            # 如果下载的大小大于记载的大小
-            # 这个情况应该在新增任务时出现
-            self.attributes.total = total
-            self._tmpFile.resize(total)
-        self._getSource()
-        pass
+    def _download_signal(self,url):
+        
+        request = QNetworkRequest()        
+        request.setRawHeader(str("Range").encode(),str("bytes=" + str(self.attributes.preProgress) + "-").encode())
+        # 设置自动重定向,之前自己实现的链接跳转就可以去掉了
+        request.setAttribute(QNetworkRequest.FollowRedirectsAttribute,True)
+        request.setUrl(QUrl(url))
+
+        self._reply = self._manager.get(request)
+        self._reply.downloadProgress.connect(self.writeFile)
+        self._reply.finished.connect(self.downloadError)
+        return True
 
     # 下载多个文件
     def _download_mult(self):
@@ -202,7 +171,7 @@ class HttpsDownloader(QObject):
         url = self.attributes.url[:self.attributes.url.rfind('/') + 1] + newNum
         self._openTemp()
         print(url)
-        self._readAhead_https(url)
+        self._download_signal(url)
         pass
 
     # 把数据写入文件的指令
@@ -227,7 +196,18 @@ class HttpsDownloader(QObject):
     def writeFile(self,receive,total):
         print("receive",receive)
         print("total",total)
-        
+        print(self._reply.error())
+
+        if total <= 0 :
+            # -1有可能是下载错误
+            if receive <= 0:
+                self.changeState(DownloaderAttributes.States.networkError)
+                # 这里不打算中断网络链接，经过观察再决定这里是否中断
+                return
+            else:
+                # 这种情况是total返回-1，但是实际上是有下载的
+                self.changeState(DownloaderAttributes.States.totalLessThanZero)
+
         # 这里是刚开始下载的时候，total默认是0,设置下载的文件大小
         if self.attributes.total != total:
             self.attributes.total = total + self.attributes.preProgress
@@ -290,7 +270,7 @@ class HttpsDownloader(QObject):
             self.attributes.preProgress = self.attributes.curProgress
         else:
             self.changeState(DownloaderAttributes.States.downloading)
-            self._readAhead_https(self.attributes.url)
+            self._download_signal(self.attributes.url)
 
     # 槽函数
     # 停止下载，所有标志位重置为FALSE，关闭下载通道，关闭文件.
@@ -319,47 +299,6 @@ class HttpsDownloader(QObject):
         self._configFile.remove()
         self.changeState(DownloaderAttributes.States.finish)
         self.stopDown()
-
-    # 槽函数
-    # 预读开始的一部分数据，判断是否含有跳转，如果含有继续预加载
-    # 否则开始正式下载
-    @pyqtSlot("qint64","qint64")
-    def onReadAhead_https(self,receive,total):
-        u = self._readAheadReply.attribute(QNetworkRequest.RedirectionTargetAttribute)
-        msg = self._readAheadReply.readAll()
-        print(self._readAheadReply.error())
-        self._readAheadReply.downloadProgress.disconnect(self.onReadAhead_https)
-        self._readAheadReply.deleteLater()
-        self._readAheadReply.abort()
-
-        # 这里就不做其他判断了，就算在暂停时候下载完成也不写入文件
-        if self.attributes._state == DownloaderAttributes.States.pause:
-            return
-            
-        print("receive",receive)
-        print("total",total)
-        print(u)
-        if u != None:
-            self._readAhead_https(u.toString())
-        else:
-            if total <= 0 :
-                 # -1有可能是下载错误
-                if receive <= 0:
-                    self._readAhead_https(self.attributes.url)
-                    return
-                else:
-                    # 这种情况是total返回-1，但是实际上是有下载的
-                    self._download_signal(total)
-                    return
-            elif receive == total:
-                # 预加载时下载完成的情况
-                self._tmpFile.writeData(msg)
-                self._tmpFile.flush()
-                self.success()
-                return
-            else:
-                self._download_signal(total)
-        return
     
     # 删除这次任务，当然，这里只是关闭文件而已
     # 正真删除操作在setting类

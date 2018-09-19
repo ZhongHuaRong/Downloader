@@ -19,6 +19,7 @@ class DownloaderAttributes(QObject):
         'fileOpenError',    # 文件打开错误
         'fileWriteError',   # 文件写入错误
         'networkError',     # 网络错误
+        'totalLessThanZero' # 这个错误是获取到的文件总大小为-1，暂时设置用于显示错误
         )
     )
     # 初始化函数
@@ -206,6 +207,7 @@ class DownloaderAttributes(QObject):
             DownloaderAttributes.States.fileOpenError:"fileOpenError",
             DownloaderAttributes.States.fileWriteError:"fileWriteError",
             DownloaderAttributes.States.networkError:"networkError",
+            DownloaderAttributes.States.totalLessThanZero:"totalLessThanZero"
         }.get(self._state,"downloadError")
 
     #将string转为type enum
@@ -229,6 +231,7 @@ class DownloaderAttributes(QObject):
             "fileOpenError" : DownloaderAttributes.States.fileOpenError,
             "fileWriteError" : DownloaderAttributes.States.fileWriteError,
             "networkError" : DownloaderAttributes.States.networkError,
+            "totalLessThanZero" : DownloaderAttributes.States.totalLessThanZero,
         }.get(str,DownloaderAttributes.States.downloadError)
         self.setState(s)
         return self._state

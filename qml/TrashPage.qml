@@ -133,7 +133,7 @@ Item {
         finishList = ""
         for(var n = 1; n < l.length; n++){
             if(n != index + 1)
-                finishList(l[n])
+                finishAppend(l[n])
         }
     }
 
@@ -142,7 +142,7 @@ Item {
         totalList = ""
         for(var n = 1; n < l.length; n++){
             if(n != index + 1)
-                totalList(l[n])
+                totalAppend(l[n])
         }
     }
 
@@ -151,7 +151,7 @@ Item {
         progressList = ""
         for(var n = 1; n < l.length; n++){
             if(n != index + 1)
-                progressList(l[n])
+                progressAppend(l[n])
         }
     }
 
