@@ -16,5 +16,7 @@
         <file>qml/NewUrlPage.qml</file>
         <file>qml/HttpSetting.qml</file>
         <file>qml/MyScrollView.qml</file>
+        <file>qml/FinishPage.qml</file>
+        <file>qml/TrashPage.qml</file>
     </qresource>
 </RCC>

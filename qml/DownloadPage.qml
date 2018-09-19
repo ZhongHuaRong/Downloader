@@ -1,6 +1,7 @@
-import QtQuick 2.8
+﻿import QtQuick 2.8
 import zm.pyqt.Downloader 1.0
 import Qt.labs.settings 1.0
+import QtQuick.Controls 2.3
 
 Item {
     id:page
@@ -12,8 +13,16 @@ Item {
     property string stateList: ""
     property string numList: ""
 
+    signal toFinish(string url,string path,string name,string num,
+                    string finishFile, string total,string curProgress)
+    signal toTrash(string url,string path,string name,string num,
+                   string finishFile, string total,string curProgress)
+    signal deleteFile(string path,string name)
+    signal viewOnExplorer(string path,string name)
+
     function insertNew(url,path,name,totalFile){
-        path += "/"
+        if(path[path.length - 1] != "/")
+            path += "/"
         console.debug(url,path,name,totalFile)
         listModel.append({
                              url:url,
@@ -28,13 +37,42 @@ Item {
         stateAppend("downloading")
     }
 
-    function removeFinish(index){
+    //删除任务有三种情况，一种是完成后去到已完成列表，一个是移除到已删除列表
+    //最后一种是永久删除，不保留记录
+    function removeTask(index,isFinish,toRecycleBin,
+                        finishFile,total,curProgress){
+        var u = listModel.get(index).url
+        var p = listModel.get(index).path
+        var n = listModel.get(index).name
+        var f = listModel.get(index).files
         urlRemove(index)
         pathRemove(index)
         nameRemove(index)
         stateRemove(index)
         numRemove(index)
         listModel.remove(index)
+        if(isFinish){
+            page.toFinish(u,
+                          p,
+                          n,
+                          f,
+                          finishFile,
+                          total,
+                          curProgress)
+        }
+        else if(toRecycleBin){
+            page.toTrash(u,
+                         p,
+                         n,
+                         f,
+                         finishFile,
+                         total,
+                         curProgress)
+        }
+        else{
+            page.deleteFile(p,
+                            n)
+        }
     }
 
     function urlAppend(str){
@@ -207,10 +245,13 @@ Item {
                     page.stateChanged(index,delegateItem.state)
                     if(delegateItem.state != "downloading"){
                         if(delegateItem.state == "finish"){
-                            page.removeFinish(index)
+                            page.removeTask(index,true,false,
+                                            delegateItem.finishFile,
+                                            delegateItem.total,
+                                            delegateItem.curProgress)
                             return
                         }
-                        bar.stop()
+//                        bar.stop()
                     }
 
                 }
@@ -374,6 +415,82 @@ Item {
                     anchors.right: parent.right
                     anchors.rightMargin: 0
                     text:"已完成/总数量:"+finishFile + "/" + totalFile
+                }
+
+                MouseArea{
+                    anchors.fill: parent
+                    z:stateButton.z - 1
+                    acceptedButtons:Qt.RightButton
+                    onClicked: {
+                        if(mouse.button == Qt.RightButton){
+                            popup.x = mouse.x
+                            popup.y = mouse.y
+                            popup.open()
+                        }
+                    }
+                }
+
+                Menu{
+                    id:popup
+
+                    Action{
+                        id:startAction
+                        text:qsTr("Start Download")
+                        checkable: false
+                        enabled: delegateItem.state != "downloading"
+                        onTriggered: {
+                            popup.close()
+                            downloaderManager.pauseDown()
+                        }
+                    }
+
+                    Action{
+                        id:pauseAction
+                        text:qsTr("Stop Download")
+                        checkable: false
+                        enabled:!startAction.enabled
+                        onTriggered: {
+                            popup.close()
+                            downloaderManager.pauseDown()
+                        }
+                    }
+
+                    Action{
+                        id:view
+                        text:qsTr("View on Explorer")
+                        checkable: false
+                        onTriggered: {
+                            popup.close()
+                            page.viewOnExplorer(path,name)
+                        }
+                    }
+
+                    Action{
+                        id:removeAction
+                        text:qsTr("Remove to trash")
+                        checkable: false
+                        onTriggered: {
+                            popup.close()
+                            page.removeTask(index,false,true,
+                                            delegateItem.finishFile,
+                                            delegateItem.total,
+                                            delegateItem.curProgress)
+                        }
+                    }
+
+                    Action{
+                        id:deleteAction
+                        text:qsTr("Delete permanently")
+                        checkable: false
+                        onTriggered: {
+                            popup.close()
+                            downloaderManager.deleteFile(path,name)
+                            page.removeTask(index,false,false,
+                                            delegateItem.finishFile,
+                                            delegateItem.total,
+                                            delegateItem.curProgress)
+                        }
+                    }
                 }
 
             }

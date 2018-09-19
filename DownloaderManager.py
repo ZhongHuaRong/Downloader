@@ -99,3 +99,18 @@ class DownloaderManager(QObject):
             return None
         elif self._type == DownloaderAttributes.UrlType.Https:
             self._http.pauseDown()
+
+    # 删除这次任务，当然，这里只是关闭文件而已
+    # 正真删除操作在setting类
+    # 因为只有正在下载的任务有这个类
+    # 重构后，可能在这里实现文件的删除操作
+    @pyqtSlot()
+    def deleteFile(self):
+        if self._type == DownloaderAttributes.UrlType.Null:
+            return None
+        elif self._type == DownloaderAttributes.UrlType.Unknown:
+            return None
+        elif self._type == DownloaderAttributes.UrlType.Https:
+            self._http.deleteFile()
+        else:
+            return None

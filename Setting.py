@@ -1,6 +1,7 @@
 
-from PyQt5.Qt import QApplication,Qt,QObject,QDir,QUrl
+from PyQt5.Qt import QApplication,QObject,QDir,QUrl,QFile
 from PyQt5.Qt import pyqtSlot,pyqtSignal,pyqtProperty
+from PyQt5.QtNetwork import QNetworkProxy
 from DownloaderAttributes import DownloaderAttributes
 
 class Setting(QObject):
@@ -93,3 +94,35 @@ class Setting(QObject):
         u = QUrl(url)
         
         return u.path()[:len(u.path()) - len(u.fileName())]
+
+    # 设置代理服务器
+    @pyqtSlot(bool,str,int,str,str)
+    def setProxy(self,enable,hostname,port,username,password):
+        proxy =  QNetworkProxy()
+        if enable:
+            proxy.setType(QNetworkProxy.HttpProxy)
+            print("启动代理")
+            print("主机名",hostname)
+            print("端口",port)
+            print("用户名",username)
+            print("密码",password)
+        else:
+            proxy.setType(QNetworkProxy.NoProxy)
+            print("取消代理")
+        proxy.setHostName(hostname)
+        proxy.setPort(port)
+        proxy.setUser(username)
+        proxy.setPassword(password)
+        QNetworkProxy.setApplicationProxy(proxy)
+
+    # 永久删除文件，删除临时文件和配置文件，不删除已下载完成的文件
+    @pyqtSlot(str,str)
+    def deleteFile(self,path,name):
+        file = QFile(path + name + ".tmp")
+        print(file.fileName())
+        if file.exists():
+            print(file.remove())
+        file.setFileName(path + name + ".tmp.cfg")
+        if file.exists():
+            print(file.remove())
+        

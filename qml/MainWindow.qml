@@ -4,6 +4,14 @@ import QtQuick.Controls 1.4
 Item {
     id:mainWindow
 
+    function deleteFile(path,name){
+        setting.deleteFile(path,name)
+    }
+
+    function openFolder(path,name){
+        Qt.openUrlExternally( path)
+    }
+
     TabView{
         id:tab
         anchors.fill:parent
@@ -12,23 +20,64 @@ Item {
             title: "正在下载(" + item.count + ")"
             active: true
             DownloadPage{
+                onToFinish: {
+                    finishPage.item.insertNew(url,path,name,
+                                              num,finishFile,total,curProgress)
+                }
+                onToTrash: {
+                    trashTab.item.insertNew(url,path,name,
+                                            num,finishFile,total,curProgress)
+                }
+                onDeleteFile: {
+                    mainWindow.deleteFile(path,name)
+                }
+                onViewOnExplorer: {
+                    mainWindow.openFolder(path,name)
+                }
             }
         }
         Tab {
-            title: "已完成(" + 0 + ")"
+            id:finishPage
+            title: "已完成(" + item.count + ")"
             active: true
-            Rectangle{}
+            FinishPage{
+                onToDownload: {
+                    downloadTab.item.insertNew(url,path,name,num)
+                }
+                onToTrash: {
+                    trashTab.item.insertNew(url,path,name,
+                                            num,finishFile,total,curProgress)
+                }
+                onDeleteFile: {
+                    mainWindow.deleteFile(path,name)
+                }
+                onViewOnExplorer: {
+                    mainWindow.openFolder(path,name)
+                }
+            }
         }
         Tab {
-            title: "已删除(" + 0 + ")"
+            id:trashTab
+            title: "已删除(" + item.count + ")"
             active: true
-            Rectangle{}
+            TrashPage{
+                onToDownload: {
+                    downloadTab.item.insertNew(url,path,name,num)
+                }
+                onDeleteFile: {
+                    mainWindow.deleteFile(path,name)
+                }
+                onViewOnExplorer: {
+                    mainWindow.openFolder(path,name)
+                }
+            }
         }
         Tab {
             id:settingTab
             title: "设置"
             active: true
             SettingPage{
+                onProxyButtonClick:setting.setProxy(proxyEnable,proxyHostname,proxyPort,proxyUser,proxyPw)
             }
         }
         Tab{

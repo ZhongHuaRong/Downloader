@@ -12,12 +12,12 @@ Rectangle {
     property color enteredBorderColor: "#0078D7"
     property color exitedColor: "#E1E1E1"
     property color exitedBorderColor: "#ADADAD"
-    property color unClickedColor: "#DCDCDC"
+    property color unClickedColor: "#808080"
     property int borderWidth: 1
     property bool isPressed: false
     property string text: "按钮"
     property int pixelSize: 14
-    property var canClicked: true
+    property var enabled: true
 
     //让子组件button暴露在接口
     property var buttonObject: button
@@ -47,8 +47,8 @@ Rectangle {
         rect.checked=true;
     }
 
-    onCanClickedChanged: {
-        if(canClicked)
+    onEnabledChanged: {
+        if(enabled)
             rect.state = "exited"
         else
             rect.state = "unClicked"
@@ -121,7 +121,7 @@ Rectangle {
         State{
             name:"unClicked";
             PropertyChanges {
-                target: button;
+                target: text1;
                 color:rect.unClickedColor
             }
         }
@@ -160,7 +160,7 @@ Rectangle {
         hoverEnabled: true
 
         onEntered: {
-            if(!rect.canClicked){
+            if(!rect.enabled){
                 return;
             }
 
@@ -171,7 +171,7 @@ Rectangle {
         }
 
         onExited:{
-            if(!rect.canClicked){
+            if(!rect.enabled){
                 return;
             }
             if(rect.checkable){
@@ -185,7 +185,7 @@ Rectangle {
         }
 
         onPressed: {
-            if(!rect.canClicked){
+            if(!rect.enabled){
                 return;
             }
             rect.state="pressed";
@@ -193,7 +193,7 @@ Rectangle {
         }
 
         onReleased: {
-            if(!rect.canClicked){
+            if(!rect.enabled){
                 return;
             }
             //松开在点击之前，所以checked反着判断
@@ -219,7 +219,7 @@ Rectangle {
         }
 
         onClicked: {
-            if(!rect.canClicked){
+            if(!rect.enabled){
                 rect.state="unClicked";
                 return;
             }

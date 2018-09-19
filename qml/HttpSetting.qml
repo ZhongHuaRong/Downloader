@@ -22,6 +22,7 @@ Item {
     }
 
     function downloadButtonClick(){
+        console.debug("downloadButtonClick")
         httpItem.download(fileName,numEdit.text)
         downloadButton.enabled = false
     }
@@ -86,7 +87,10 @@ Item {
             CPushButton{
                 id:downloadButton
                 text:"下载"
-                onClicked: httpItem.downloadButtonClick()
+                onClicked: {
+                    downloadButton.enabled = false
+                    httpItem.downloadButtonClick()
+                }
             }
 
         }

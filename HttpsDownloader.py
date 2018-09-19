@@ -130,6 +130,7 @@ class HttpsDownloader(QObject):
     def _readAhead_https(self,url):
         self._jumpUrl = url
         request = QNetworkRequest()
+        # request.setAttribute(QNetworkRequest.FollowRedirectsAttribute,True)
         request.setUrl(QUrl(url))
         self._readAheadReply = self._manager.get(request)
         self._readAheadReply.downloadProgress.connect(self.onReadAhead_https)
@@ -162,7 +163,7 @@ class HttpsDownloader(QObject):
             else:
                 self.changeState(DownloaderAttributes.States.pause)
         else:
-            self.attributes.path = path[:-2] + fileName
+            self.attributes.path = path[:-1] + fileName
             # 生成目录
             self.isDirExist(self.attributes.path)
             # 重置文件名，用于生成配置文件而已
@@ -326,23 +327,44 @@ class HttpsDownloader(QObject):
     def onReadAhead_https(self,receive,total):
         u = self._readAheadReply.attribute(QNetworkRequest.RedirectionTargetAttribute)
         msg = self._readAheadReply.readAll()
+        print(self._readAheadReply.error())
         self._readAheadReply.downloadProgress.disconnect(self.onReadAhead_https)
         self._readAheadReply.deleteLater()
         self._readAheadReply.abort()
-        
+
+        # 这里就不做其他判断了，就算在暂停时候下载完成也不写入文件
+        if self.attributes._state == DownloaderAttributes.States.pause:
+            return
+            
+        print("receive",receive)
+        print("total",total)
         print(u)
         if u != None:
             self._readAhead_https(u.toString())
         else:
             if total <= 0 :
-                 #-1有可能是下载错误
-                self._readAhead_https(self.attributes.url)
+                 # -1有可能是下载错误
+                if receive <= 0:
+                    self._readAhead_https(self.attributes.url)
+                    return
+                else:
+                    # 这种情况是total返回-1，但是实际上是有下载的
+                    self._download_signal(total)
+                    return
             elif receive == total:
                 # 预加载时下载完成的情况
                 self._tmpFile.writeData(msg)
                 self._tmpFile.flush()
                 self.success()
-                pass
+                return
             else:
                 self._download_signal(total)
         return
+    
+    # 删除这次任务，当然，这里只是关闭文件而已
+    # 正真删除操作在setting类
+    # 因为只有正在下载的任务有这个类
+    # 重构后，可能在这里实现文件的删除操作
+    def deleteFile(self):
+        self._tmpFile.close()
+        self._configFile.close()

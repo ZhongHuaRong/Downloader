@@ -31,6 +31,7 @@ Item {
 
     function startDownload(name,pages){
         //该信号在多个文件下载时优化
+        console.debug("startDownload")
         urlPage.newOne(sourceEdit.text,targetEdit.text,name,pages)
     }
 
