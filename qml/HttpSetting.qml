@@ -5,11 +5,9 @@ Item {
 
     property alias fileName: targetEdit.text
     property string path: ""
-    property string url: ""
     property string name: ""
 
     function setFileName(name,path){
-        httpItem.url = name
         httpItem.name = setting.checkFileName(name,path)
         httpItem.path = path
         httpItem.fileName = httpItem.name
@@ -72,7 +70,7 @@ Item {
                     onTextChanged: {
                         if(text != "1"){
                             //页数不是1的时候会处理文件名
-                            targetEdit.text = setting.getFolderName(url,path)
+                            httpItem.fileName = setting.getFolderName(url,path)
                         }
                         else{
                             httpItem.fileName = httpItem.name

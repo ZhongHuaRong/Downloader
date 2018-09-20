@@ -18,5 +18,6 @@
         <file>qml/MyScrollView.qml</file>
         <file>qml/FinishPage.qml</file>
         <file>qml/TrashPage.qml</file>
+        <file>qml/BTSetting.qml</file>
     </qresource>
 </RCC>

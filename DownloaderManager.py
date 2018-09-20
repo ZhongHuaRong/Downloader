@@ -78,6 +78,9 @@ class DownloaderManager(QObject):
         elif self._type == DownloaderAttributes.UrlType.Https:
             self._http.startDownload(isPause)
             return self._http.attributes
+        elif self._type == DownloaderAttributes.UrlType.BitTorrent:
+            self._http.startDownload(isPause)
+            return self._http.attributes
         else:
             return None
 

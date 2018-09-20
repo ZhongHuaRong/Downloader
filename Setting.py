@@ -1,4 +1,5 @@
 
+import base64
 from PyQt5.Qt import QApplication,QObject,QDir,QUrl,QFile
 from PyQt5.Qt import pyqtSlot,pyqtSignal,pyqtProperty
 from PyQt5.QtNetwork import QNetworkProxy
@@ -125,4 +126,12 @@ class Setting(QObject):
         file.setFileName(path + name + ".tmp.cfg")
         if file.exists():
             print(file.remove())
+
+    @pyqtSlot(str,result = str)
+    def getThunderUrl(self,url):
+        src = url.split('/')[-1]
+        src = base64.b64decode(src)[2:-2]
+        print(src)
+        # 这里有时候会编码失败而程序奔溃
+        return str(src,"gbk")
         

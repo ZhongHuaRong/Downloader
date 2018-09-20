@@ -74,6 +74,8 @@ Item {
                     break;
                 case 2:
                     //BT类型
+                    loader.source = "./BTSetting.qml"
+                    loader.item.setFileName(sourceEdit.text,targetEdit.text)
                     break;
                 }
             }
@@ -132,6 +134,11 @@ Item {
         function httpDownload(name,pages){
             console.debug("httpDownload")
             urlPage.newOne(sourceEdit.text,targetEdit.text,name,pages)
+        }
+
+        function btDownload(url,name){
+            console.debug("httpDownload")
+            urlPage.newOne(url,targetEdit.text,name,"1")
         }
     }
 
