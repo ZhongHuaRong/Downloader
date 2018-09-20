@@ -160,6 +160,7 @@ Item {
             return "0 B"
         }
         var n = 0
+        value /= 1.0
         while(value>1024){
             value /= 1024.0
             n++
