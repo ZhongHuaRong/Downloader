@@ -29,12 +29,6 @@ Item {
             return 0
     }
 
-    function startDownload(name,pages){
-        //该信号在多个文件下载时优化
-        console.debug("startDownload")
-        urlPage.newOne(sourceEdit.text,targetEdit.text,name,pages)
-    }
-
     Settings {
         property alias lastSelectDownloadPath: targetEdit.text
     }
@@ -76,7 +70,6 @@ Item {
                 case 1:
                     //http类型
                     loader.source = "./HttpSetting.qml"
-                    loader.item.download.connect(urlPage.startDownload)
                     loader.item.setFileName(sourceEdit.text,targetEdit.text)
                     break;
                 case 2:
@@ -134,20 +127,12 @@ Item {
         anchors.bottom:parent.bottom
         anchors.bottomMargin: 0
 
-//        onLoaded: {
-//            switch(type){
-//            case 0:
-//                //未知类型或者未填写
-//                loader.source = ""
-//                break;
-//            case 1:
-//                //http类型
-//                break;
-//            case 2:
-//                //BT类型
-//                break;
-//            }
-//        }
+        // 放在这里实现，用信号绑定的话会出现重复的情况，
+        // 除非解除绑定，不过解除绑定需要花费很多功夫去检测
+        function httpDownload(name,pages){
+            console.debug("httpDownload")
+            urlPage.newOne(sourceEdit.text,targetEdit.text,name,pages)
+        }
     }
 
     FileDialog{

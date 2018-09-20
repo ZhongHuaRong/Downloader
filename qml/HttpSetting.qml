@@ -3,8 +3,6 @@ import QtQuick 2.9
 Item {
     id:httpItem
 
-    signal download(string name,string pages)
-
     property alias fileName: targetEdit.text
     property string path: ""
     property string url: ""
@@ -22,8 +20,7 @@ Item {
     }
 
     function downloadButtonClick(){
-        console.debug("downloadButtonClick")
-        httpItem.download(fileName,numEdit.text)
+        httpItem.parent.httpDownload(fileName,numEdit.text)
         downloadButton.enabled = false
     }
 
