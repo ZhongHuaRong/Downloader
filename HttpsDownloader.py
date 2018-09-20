@@ -23,9 +23,6 @@ class HttpsDownloader(QObject):
         self._configFile = QFile(self)
         self._reply = None
 
-        # 保存跳转后的url
-        self._jumpUrl = ""
-
     # 析构函数
     def __del__(self):
         # 这些析构函数会报错
@@ -101,18 +98,13 @@ class HttpsDownloader(QObject):
         return True
         
     # 开始下载文件
-    def startDownload(self,url,path,fileName,fileTotal,isPause):
-        self.attributes.url = url
-        self.attributes.path = path
-        self.attributes.setTotalFile(fileTotal)
-
+    def startDownload(self,isPause):
         # 这里区分批量下载和单个文件下载
-        if fileTotal == 1:
+        if self.attributes.totalFile == 1:
             # 这里不需要重新计算文件名，因为在UI已经确认过了，这里如果文件名相同则会是
             # 继续下载，所以不存在会文件名相同
-            self.attributes.fileName = fileName
             # 单个文件下载则任务名和文件名同名
-            self.attributes.taskName = fileName
+            self.attributes.taskName = self.attributes.fileName
             # 打开配置文件并保存,这一步放在设置文件名后执行
             self._openConfig()
             if self._loadConfig():
@@ -124,15 +116,15 @@ class HttpsDownloader(QObject):
             if not isPause:
                 # 如果不是暂停，则下载
                 self.changeState(DownloaderAttributes.States.downloading)
-                self._download_signal(url)
+                self._download_signal(self.attributes.url)
             else:
                 self.changeState(DownloaderAttributes.States.pause)
         else:
-            self.attributes.path = path[:-1] + fileName
+            self.attributes.path = self.attributes.path[:-1] + self.attributes.fileName
             # 生成目录
             self.isDirExist(self.attributes.path)
             # 重置文件名，用于生成配置文件而已
-            self.attributes.fileName = self.attributes.checkFileName(fileName.split('/')[-2],self.attributes.path)
+            self.attributes.fileName = self.attributes.checkFileName(self.attributes.fileName.split('/')[-2],self.attributes.path)
             # 多个文件下载则是文件夹的名字
             self.attributes.taskName = self.attributes.fileName
             # 打开配置文件并保存,这一步放在设置文件名后执行
