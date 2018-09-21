@@ -6,9 +6,11 @@ Item {
     property alias fileName: targetEdit.text
     property string path: ""
     property string name: ""
+    property string url: ""
 
-    function setFileName(name,path){
-        httpItem.name = setting.checkFileName(name,path)
+    function setMsg(baseUrl,fileName,path){
+        httpItem.url = baseUrl
+        httpItem.name = fileName
         httpItem.path = path
         httpItem.fileName = httpItem.name
         downloadButton.enabled = true
@@ -18,7 +20,7 @@ Item {
     }
 
     function downloadButtonClick(){
-        httpItem.parent.httpDownload(fileName,numEdit.text)
+        httpItem.parent.httpDownload(url,fileName,numEdit.text)
         downloadButton.enabled = false
     }
 

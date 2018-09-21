@@ -115,7 +115,6 @@ class HttpsDownloader(QObject):
             self._openTemp()
             if not isPause:
                 # 如果不是暂停，则下载
-                self.changeState(DownloaderAttributes.States.downloading)
                 self._download_signal(self.attributes.url)
             else:
                 self.changeState(DownloaderAttributes.States.pause)
@@ -124,7 +123,10 @@ class HttpsDownloader(QObject):
             # 生成目录
             self.isDirExist(self.attributes.path)
             # 重置文件名，用于生成配置文件而已
-            self.attributes.fileName = self.attributes.checkFileName(self.attributes.fileName.split('/')[-2],self.attributes.path)
+            if len(self.attributes.fileName.split('/')) >= 2:
+                self.attributes.fileName = self.attributes.checkFileName(self.attributes.fileName.split('/')[-2],self.attributes.path)
+            else:
+                self.attributes.fileName = self.attributes.checkFileName(self.attributes.fileName,self.attributes.path)
             # 多个文件下载则是文件夹的名字
             self.attributes.taskName = self.attributes.fileName
             # 打开配置文件并保存,这一步放在设置文件名后执行
@@ -138,7 +140,6 @@ class HttpsDownloader(QObject):
                 # 如果不是暂停，则下载
                 # 设置为另一个接口主要的意图在于，多个文件下载完都会调用一次该接口
                 self._download_mult()
-                self.changeState(DownloaderAttributes.States.downloading)
             else:
                 self.changeState(DownloaderAttributes.States.pause)
             
@@ -152,6 +153,7 @@ class HttpsDownloader(QObject):
         request.setAttribute(QNetworkRequest.FollowRedirectsAttribute,True)
         request.setUrl(QUrl(url))
 
+        self.changeState(DownloaderAttributes.States.downloading)
         self._reply = self._manager.get(request)
         self._reply.downloadProgress.connect(self.writeFile)
         self._reply.finished.connect(self.downloadError)
@@ -190,9 +192,9 @@ class HttpsDownloader(QObject):
     # total:文件总大小
     @pyqtSlot("qint64","qint64")
     def writeFile(self,receive,total):
-        print("receive",receive)
-        print("total",total)
-        print(self._reply.error())
+        # print("receive",receive)
+        # print("total",total)
+        # print(self._reply.error())
 
         if total <= 0 :
             # -1有可能是下载错误

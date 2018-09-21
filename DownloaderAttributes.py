@@ -9,7 +9,7 @@ from PyQt5.QtCore import QJsonDocument
 from PyQt5.QtCore import QJsonValue
 
 class DownloaderAttributes(QObject):
-    UrlType = Enum('Type', ( 'Unknown', 'Null', 'Https', 'BitTorrent'))
+    UrlType = Enum('Type', ( 'Unknown', 'Null', 'Https', 'BitTorrent','Magnet'))
     States = Enum('State', ( # 该枚举类型用于更新UI
         'downloadError',    # 下载错误
         'NoDownload',       # 未开始下载，任务未开始

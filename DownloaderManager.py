@@ -52,46 +52,50 @@ class DownloaderManager(QObject):
 
     # 判断url是哪种下载链接
     # url:用于判断的url
-    def urlType(self,url):
-        if len(url) == 0:
-            return DownloaderAttributes.UrlType.Null
-        text = url.split('://')
-        if len(text) < 1:
-            return DownloaderAttributes.UrlType.Unknown
-        elif  text[0] == "http" or text[0] == "https":
-            return DownloaderAttributes.UrlType.Https
-        elif text[0] == "thunder":
-            return DownloaderAttributes.UrlType.BitTorrent
-        else:
-            return DownloaderAttributes.UrlType.Unknown
+    # def urlType(self,url):
+    #     if len(url) == 0:
+    #         return DownloaderAttributes.UrlType.Null
+    #     text = url.split('://')
+    #     if len(text) < 1:
+    #         return DownloaderAttributes.UrlType.Unknown
+    #     elif  text[0] == "http" or text[0] == "https":
+    #         return DownloaderAttributes.UrlType.Https
+    #     elif text[0] == "thunder":
+    #         return DownloaderAttributes.UrlType.BitTorrent
+    #     else:
+    #         return DownloaderAttributes.UrlType.Unknown
 
     # 下载文件
     # isPause:启动的时候是暂停的还是直接下载
     @pyqtSlot(bool,result = DownloaderAttributes)
     def downloadFile(self,isPause):
-        self._type = self.urlType(self._http.attributes.url)
+        # 先取消类型判断，直接下载
+        self._http.startDownload(isPause)
+        return self._http.attributes
+        # self._type = self.urlType(self._http.attributes.url)
 
-        if self._type == DownloaderAttributes.UrlType.Null:
-            return None
-        elif self._type == DownloaderAttributes.UrlType.Unknown:
-            return None
-        elif self._type == DownloaderAttributes.UrlType.Https:
-            self._http.startDownload(isPause)
-            return self._http.attributes
-        elif self._type == DownloaderAttributes.UrlType.BitTorrent:
-            self._http.startDownload(isPause)
-            return self._http.attributes
-        else:
-            return None
+        # if self._type == DownloaderAttributes.UrlType.Null:
+        #     return None
+        # elif self._type == DownloaderAttributes.UrlType.Unknown:
+        #     return None
+        # elif self._type == DownloaderAttributes.UrlType.Https:
+        #     self._http.startDownload(isPause)
+        #     return self._http.attributes
+        # elif self._type == DownloaderAttributes.UrlType.BitTorrent:
+        #     self._http.startDownload(isPause)
+        #     return self._http.attributes
+        # else:
+        #     return None
 
     # 槽函数
     # 暂停/继续下载
     @pyqtSlot()
     def pauseDown(self):
-        if self._type == DownloaderAttributes.UrlType.Unknown:
-            pass
-        elif self._type == DownloaderAttributes.UrlType.Https:
-            self._http.pauseDown()
+        self._http.pauseDown()
+        # if self._type == DownloaderAttributes.UrlType.Unknown:
+        #     pass
+        # elif self._type == DownloaderAttributes.UrlType.Https:
+        #     self._http.pauseDown()
 
     # 删除这次任务，当然，这里只是关闭文件而已
     # 正真删除操作在setting类
@@ -99,11 +103,12 @@ class DownloaderManager(QObject):
     # 重构后，可能在这里实现文件的删除操作
     @pyqtSlot()
     def deleteFile(self):
-        if self._type == DownloaderAttributes.UrlType.Null:
-            pass
-        elif self._type == DownloaderAttributes.UrlType.Unknown:
-            pass
-        elif self._type == DownloaderAttributes.UrlType.Https:
-            self._http.deleteFile()
-        else:
-            pass
+        self._http.deleteFile()
+        # if self._type == DownloaderAttributes.UrlType.Null:
+        #     pass
+        # elif self._type == DownloaderAttributes.UrlType.Unknown:
+        #     pass
+        # elif self._type == DownloaderAttributes.UrlType.Https:
+        #     self._http.deleteFile()
+        # else:
+        #     pass

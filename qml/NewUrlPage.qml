@@ -15,20 +15,6 @@ Item {
         sourceEdit.text = url
     }
 
-    function urlType(url){
-        if(url.length == 0)
-            return 0
-        var text = url.split('://')
-        if (text.length < 1)
-            return 0
-        else if(text[0] == "http" || text[0] == "https")
-            return 1
-        else if(text[0] == "thunder")
-            return 2
-        else
-            return 0
-    }
-
     Settings {
         property alias lastSelectDownloadPath: targetEdit.text
     }
@@ -61,18 +47,23 @@ Item {
             placeholderText:"输入URL"
             readOnly: settingItem.downloadFlag
             onTextChanged: {
-                type = urlType(text)
+                var url = setting.getBaseUrl(sourceEdit.text)
+                // 这样子可以让type的判断减少一次递归
+                type = setting.urlType(url)
                 switch(type){
                 case 0:
+                case 1:
                     //未知类型或者未填写
                     loader.source = ""
                     break;
-                case 1:
+                case 2:
                     //http类型
                     loader.source = "./HttpSetting.qml"
-                    loader.item.setFileName(sourceEdit.text,targetEdit.text)
+                    loader.item.setMsg(url,
+                                       setting.checkFileName(url,targetEdit.text),
+                                       targetEdit.text)
                     break;
-                case 2:
+                case 3:
                     //BT类型
                     loader.source = "./BTSetting.qml"
                     loader.item.setFileName(sourceEdit.text,targetEdit.text)
@@ -131,9 +122,9 @@ Item {
 
         // 放在这里实现，用信号绑定的话会出现重复的情况，
         // 除非解除绑定，不过解除绑定需要花费很多功夫去检测
-        function httpDownload(name,pages){
+        function httpDownload(baseUrl,name,pages){
             console.debug("httpDownload")
-            urlPage.newOne(sourceEdit.text,targetEdit.text,name,pages)
+            urlPage.newOne(baseUrl,targetEdit.text,name,pages)
         }
 
         function btDownload(url,name){

@@ -17,20 +17,27 @@ class Setting(QObject):
         self._clipboard.dataChanged.connect(self.boardDataChanged)
 
     # 判断url是哪种下载链接
-    # url:用于判断的url
-    @pyqtSlot(str,result = DownloaderAttributes.UrlType)
+    # 为了qml能够使用返回值，改为返回int
+    @pyqtSlot(str,result = int)
     def urlType(self,url):
-        if len(url) == 0:
-            return DownloaderAttributes.UrlType.Null
+        if len(url) <= 8:
+            return 0
+        if url[:8] == 'magnet:?':
+            return 4
         text = url.split('://')
+        # 转小写
+        text[0] = text[0].lower()
         if len(text) < 1:
-            return DownloaderAttributes.UrlType.Unknown
-        elif  text[0] == "http" or text[0] == "https":
-            return DownloaderAttributes.UrlType.Https
-        elif text[0] == "thunder":
-            return DownloaderAttributes.UrlType.BitTorrent
+            return 1
+        elif text[0] == "http" or text[0] == "https":
+            _t = text[-1].split('.')
+            if _t[-1] == 'torrent':
+                return  3
+            else:
+                return 2
         else:
-            return DownloaderAttributes.UrlType.Unknown
+            # 其他类型url
+            return self.urlType(self.getBaseUrl(url))
 
     # 槽函数
     # 用于判断是否复制下载链接，用于自动下载.
@@ -46,7 +53,7 @@ class Setting(QObject):
             print("含有文本:",mimeData.text())
 
         url = self.urlType(mimeData.text())
-        if url == DownloaderAttributes.UrlType.Unknown and url == DownloaderAttributes.UrlType.Null:
+        if url == 0 or url == 1:
             return
         else:
             self.haveNewUrl.emit(mimeData.text())
@@ -127,11 +134,17 @@ class Setting(QObject):
         if file.exists():
             print(file.remove())
 
-    @pyqtSlot(str,result = str)
-    def getThunderUrl(self,url):
+    def _getThunderUrl(self,url):
         src = url.split('/')[-1]
         src = base64.b64decode(src)[2:-2]
+        src = src.decode('utf-8')
         print(src)
         # 这里有时候会编码失败而程序奔溃
-        return str(src,"gbk")
+        return src
         
+    @pyqtSlot(str,result = str)
+    def getBaseUrl(self,url):
+        # 现在只需要判断迅雷链接就可以了
+        if len(url) < 10 or url[:7].lower() != 'thunder':
+            return url
+        return self._getThunderUrl(url)
