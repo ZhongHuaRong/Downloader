@@ -20,6 +20,7 @@ class Setting(QObject):
     # 为了qml能够使用返回值，改为返回int
     @pyqtSlot(str,result = int)
     def urlType(self,url):
+        url = url.strip()
         if len(url) <= 8:
             return 0
         if url[:8] == 'magnet:?':
@@ -27,7 +28,7 @@ class Setting(QObject):
         text = url.split('://')
         # 转小写
         text[0] = text[0].lower()
-        if len(text) < 1:
+        if len(text) <= 1:
             return 1
         elif text[0] == "http" or text[0] == "https":
             _t = text[-1].split('.')
