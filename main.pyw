@@ -16,9 +16,9 @@ if __name__ == "__main__":
     app.setApplicationName("Downloader")
 
     logging.basicConfig(
-        filename = 'Downloader.log',
-        level = logging.INFO,
-        format = '%(asctime)s - %(levelname)s - %(message)s')
+        filename='Downloader.log',
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s')
     print(sys.argv)
     qmlRegisterType(
         DownloaderManager,
