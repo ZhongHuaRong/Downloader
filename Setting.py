@@ -1,13 +1,16 @@
 
 import base64
-from PyQt5.Qt import QApplication,QObject,QDir,QUrl,QFile
-from PyQt5.Qt import pyqtSlot,pyqtSignal,pyqtProperty
+from PyQt5.Qt import QApplication, QObject, QDir, QUrl, QFile
+from PyQt5.Qt import pyqtSlot, pyqtSignal, pyqtProperty
 from PyQt5.QtNetwork import QNetworkProxy
 from DownloaderAttributes import DownloaderAttributes
 
 class Setting(QObject):
-
-    haveNewUrl = pyqtSignal(str,arguments = [ "url" ])
+    '''
+    设置
+    '''
+    
+    haveNewUrl = pyqtSignal(str, arguments = [ "url" ])
 
      # 初始化函数
     def __init__(self,parent = None):
