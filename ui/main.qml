@@ -43,7 +43,7 @@ Window {
     SystemTrayIcon{
         id:trayIcon
         visible: true
-        iconSource: "../app.ico"
+        iconSource: "../image/app.ico"
 
         onActivated: {
             switch(reason){

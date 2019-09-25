@@ -9,7 +9,7 @@
             "command": "python",
             "args": [
                 //"${file}"
-                "main.pyw"
+                "./src/main.pyw"
             ],
             "problemMatcher": []
         }

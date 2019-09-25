@@ -47,7 +47,7 @@ if __name__ == "__main__":
         "Setting")
 
     engine = QQmlApplicationEngine()
-    engine.load(QUrl("./qml/main.qml"))
+    engine.load(QUrl("./ui/main.qml"))
     if len(engine.rootObjects()) == 0:
         exit()
     app.exec()

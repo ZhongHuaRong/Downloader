@@ -1,1 +1,1 @@
-python main.pyw
+python ./src/main.pyw

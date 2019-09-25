@@ -106,3 +106,4 @@ venv.bak/
 #qml
 *.zip
 qml/*.qmlc
+*.qmlc
