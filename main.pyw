@@ -48,6 +48,6 @@ if __name__ == "__main__":
 
     engine = QQmlApplicationEngine()
     engine.load(QUrl("./qml/main.qml"))
-    if engine.rootObjects():
+    if len(engine.rootObjects()) == 0:
         exit()
     app.exec()
