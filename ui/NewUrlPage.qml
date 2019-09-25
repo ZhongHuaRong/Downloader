@@ -49,21 +49,20 @@ Item {
             onTextChanged: {
                 var url = setting.getBaseUrl(sourceEdit.text)
                 // 这样子可以让type的判断减少一次递归
-                type = setting.urlType(url)
+                type = setting.getUrlType(url)
                 switch(type){
                 case 0:
-                case 1:
                     //未知类型或者未填写
                     loader.source = ""
                     break;
-                case 2:
+                case 1:
                     //http类型
                     loader.source = "./HttpSetting.qml"
                     loader.item.setMsg(url,
                                        setting.checkFileName(url,targetEdit.text),
                                        targetEdit.text)
                     break;
-                case 3:
+                case 2:
                     //BT类型
                     loader.source = "./BTSetting.qml"
                     loader.item.setFileName(sourceEdit.text,targetEdit.text)

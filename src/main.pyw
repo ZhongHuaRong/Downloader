@@ -3,16 +3,16 @@ import sys
 import logging
 from PyQt5.Qt import QApplication, Qt, QUrl
 from PyQt5.QtQml import QQmlApplicationEngine, qmlRegisterType
-from Setting import Setting
-from Compress import Compress
-from HttpsDownloader import HttpsDownloader
-from DownloaderManager import DownloaderManager
-from DownloaderAttributes import DownloaderAttributes
+from Core.SettingsManager import SettingsManager
+from Core.Compress import Compress
+from Network.HttpsDownloader import HttpsDownloader
+from Network.DownloaderManager import DownloaderManager
+from Network.DownloaderAttributes import DownloaderAttributes
 
 if __name__ == "__main__":
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
-    app.setOrganizationName('pyqt')
+    app.setOrganizationName('ZM')
     app.setApplicationName("Downloader")
 
     logging.basicConfig(
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         1, 0,
         "Compressor")
     qmlRegisterType(
-        Setting,
+        SettingsManager,
         "zm.pyqt.Setting",
         1, 0,
         "Setting")

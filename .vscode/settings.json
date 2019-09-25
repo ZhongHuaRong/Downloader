@@ -1,5 +1,6 @@
 {
     "python.linting.pylintArgs": [
-        "--extension-pkg-whitelist=PyQt5"
+        "--extension-pkg-whitelist=PyQt5",
+        "--disable-msg=C0103"
     ]
 }

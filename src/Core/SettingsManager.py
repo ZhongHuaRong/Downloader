@@ -3,18 +3,20 @@ import base64
 from PyQt5.Qt import QApplication, QObject, QDir, QUrl, QFile
 from PyQt5.Qt import pyqtSlot, pyqtSignal, pyqtProperty
 from PyQt5.QtNetwork import QNetworkProxy
-from DownloaderAttributes import DownloaderAttributes
+from Core.UrlType import UrlType
 
-class Setting(QObject):
+class SettingsManager(QObject):
     '''
-    设置
+    设置管理器
+    用于管理设置相关的信息
+
     '''
     
     haveNewUrl = pyqtSignal(str, arguments = [ "url" ])
 
      # 初始化函数
     def __init__(self,parent = None):
-        super(Setting,self).__init__(parent)
+        super(SettingsManager,self).__init__(parent)
 
         self._clipboard = QApplication.clipboard()
         self._clipboard.dataChanged.connect(self.boardDataChanged)
@@ -22,26 +24,24 @@ class Setting(QObject):
     # 判断url是哪种下载链接
     # 为了qml能够使用返回值，改为返回int
     @pyqtSlot(str,result = int)
-    def urlType(self,url):
+    def getUrlType(self,url):
         url = url.strip()
         if len(url) <= 8:
-            return 0
+            return UrlType.Unknown.value
         if url[:8] == 'magnet:?':
-            return 4
+            return UrlType.Magnet.value
         text = url.split('://')
         # 转小写
         text[0] = text[0].lower()
-        if len(text) <= 1:
-            return 1
-        elif text[0] == "http" or text[0] == "https":
-            _t = text[-1].split('.')
-            if _t[-1] == 'torrent':
-                return  3
-            else:
-                return 2
+        if text[0] == "http" or text[0] == "https":
+            return  UrlType.Https.value
         else:
             # 其他类型url
-            return self.urlType(self.getBaseUrl(url))
+            __url = self.getBaseUrl(url)
+            if __url == url:
+                return UrlType.Unknown.value 
+            else:
+                return self.getUrlType(__url)
 
     # 槽函数
     # 用于判断是否复制下载链接，用于自动下载.
@@ -56,8 +56,8 @@ class Setting(QObject):
         if mimeData.hasText():
             print("含有文本:",mimeData.text())
 
-        url = self.urlType(mimeData.text())
-        if url == 0 or url == 1:
+        type = self.getUrlType(mimeData.text())
+        if type == UrlType.Unknown.value:
             return
         else:
             self.haveNewUrl.emit(mimeData.text())
@@ -69,7 +69,7 @@ class Setting(QObject):
         dir = QDir(path)
         return filename in dir.entryList()
 
-    # 命名下载文件，重名则加(num),下载未完成的临时文件名也会判断是否重名,同一三个文件
+    # 命名下载文件，重名则加(数字),下载未完成的临时文件名也会判断是否重名,统一三个文件
     # 的名字，在续传会方便很多
     # 这里的重命名和DownloadAttributes的不同，这里传入的不是文件名，而是下载链接，
     # 由QUrl判断出文件名

@@ -3,8 +3,8 @@ from PyQt5.Qt import QApplication,Qt,QObject
 from PyQt5.Qt import pyqtSlot,pyqtSignal,pyqtProperty
 from PyQt5.QtNetwork import QNetworkAccessManager,QNetworkRequest,QNetworkReply
 from PyQt5.Qt import QThread,QUrl,QFile,QDir,QTextStream
-from DownloaderAttributes import DownloaderAttributes
-from HttpsDownloader import HttpsDownloader
+from Network.DownloaderAttributes import DownloaderAttributes
+from Network.HttpsDownloader import HttpsDownloader
 
 class DownloaderManager(QObject):
     

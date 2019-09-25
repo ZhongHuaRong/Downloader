@@ -3,11 +3,11 @@ import time
 import logging
 import os
 import json
-from PyQt5.Qt import QApplication,Qt,QObject
-from PyQt5.Qt import pyqtSlot,pyqtSignal,pyqtProperty
-from PyQt5.QtNetwork import QNetworkAccessManager,QNetworkRequest,QNetworkReply
-from PyQt5.Qt import QThread,QUrl,QFile,QDir,QJsonDocument
-from DownloaderAttributes import DownloaderAttributes
+from PyQt5.Qt import QApplication, Qt, QObject
+from PyQt5.Qt import pyqtSlot, pyqtSignal, pyqtProperty
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from PyQt5.Qt import QThread, QUrl, QFile, QDir, QJsonDocument
+from Network.DownloaderAttributes import DownloaderAttributes
 
 class HttpsDownloader(QObject):
     # pyqtSignal
