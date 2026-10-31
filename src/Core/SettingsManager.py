@@ -4,6 +4,7 @@ from PyQt5.Qt import QApplication, QObject, QDir, QUrl, QFile
 from PyQt5.Qt import pyqtSlot, pyqtSignal, pyqtProperty
 from PyQt5.QtNetwork import QNetworkProxy
 from Core.Enum import UrlType
+from Core.FFmpegManager import FFmpegManager
 
 class SettingsManager(QObject):
     '''
@@ -18,8 +19,13 @@ class SettingsManager(QObject):
     def __init__(self,parent = None):
         super(SettingsManager,self).__init__(parent)
 
+        self._ffmpeg = FFmpegManager(self)
         self._clipboard = QApplication.clipboard()
         self._clipboard.dataChanged.connect(self.boardDataChanged)
+
+    @pyqtProperty(QObject, constant=True)
+    def ffmpeg(self):
+        return self._ffmpeg
 
     # 判断url是哪种下载链接
     # 为了qml能够使用返回值，改为返回int

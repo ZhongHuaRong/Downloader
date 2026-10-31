@@ -81,6 +81,8 @@ Item {
             active: true
             SettingPage{
                 onProxyButtonClick:setting.setProxy(proxyEnable,proxyHostname,proxyPort,proxyUser,proxyPw)
+                onFfmpegButtonClick:setting.ffmpeg.check(ffmpegDirectory)
+                onFfmpegDirectoryChanged:setting.ffmpeg.invalidate()
             }
         }
         Tab{

@@ -1,4 +1,5 @@
 import QtQuick 2.8
+import QtQuick.Dialogs 1.3
 import Qt.labs.settings 1.0
 
 Item {
@@ -15,8 +16,10 @@ Item {
     property alias proxyPort: port.text
     property alias proxyUser: username.text
     property alias proxyPw: password.text
+    property alias ffmpegDirectory: ffmpegEdit.text
 
     signal proxyButtonClick()
+    signal ffmpegButtonClick()
 
     Settings {
         property alias autoPasteUrl:pasteUrl.checked
@@ -31,10 +34,12 @@ Item {
         property alias proxyPort: port.text
         property alias proxyUser: username.text
         property alias proxyPw: password.text
+        property alias ffmpegDirectory: ffmpegEdit.text
     }
 
     Component.onCompleted: {
         proxyButtonClick()
+        ffmpegButtonClick()
     }
 
     MyScrollView{
@@ -171,6 +176,67 @@ Item {
                     onClicked: settingItem.proxyButtonClick()
                 }
             }
+
+            TextLoader{
+                text:qsTr("FFmpeg directory")
+            }
+
+            Row{
+                spacing:5
+                width:settingItem.width - 20
+
+                CTextEdit{
+                    id:ffmpegEdit
+                    objectName:"ffmpegDirectory"
+                    width:parent.width - ffmpegBrowse.width - parent.spacing
+                    placeholderText:qsTr("Folder containing FFmpeg")
+                    onEditingFinished:settingItem.ffmpegButtonClick()
+                }
+
+                CPushButton{
+                    id:ffmpegBrowse
+                    text:qsTr("Browse...")
+                    width:80
+                    onClicked:ffmpegFolderDialog.open()
+                }
+            }
+
+            Row{
+                spacing:8
+                width:settingItem.width - 20
+
+                CPushButton{
+                    id:ffmpegDetect
+                    objectName:"ffmpegDetect"
+                    text:qsTr("Detect")
+                    width:80
+                    enabled:!setting.ffmpeg.checking
+                    onClicked:settingItem.ffmpegButtonClick()
+                }
+
+                TextLoader{
+                    objectName:"ffmpegStatus"
+                    width:parent.width - ffmpegDetect.width - parent.spacing
+                    height:ffmpegDetect.height
+                    verticalAlignment:Text.AlignVCenter
+                    wrapMode:Text.WordWrap
+                    text:setting.ffmpeg.status
+                    color:setting.ffmpeg.checking || ffmpegEdit.text.length === 0
+                          ? "#445266" : setting.ffmpeg.ready ? "#228B22" : "#b00020"
+                }
+            }
+        }
+    }
+
+    FileDialog{
+        id:ffmpegFolderDialog
+        objectName:"ffmpegFolderDialog"
+        title:qsTr("Select FFmpeg Directory")
+        folder:shortcuts.desktop
+        selectFolder:true
+        onAccepted: {
+            ffmpegEdit.text = setting.ffmpeg.localDirectory(fileUrl)
+            settingItem.ffmpegButtonClick()
         }
     }
 }
