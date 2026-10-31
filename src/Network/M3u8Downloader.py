@@ -9,7 +9,7 @@ from PyQt5.QtCore import QObject, QProcess, QTimer, QUrl
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 from Network.DownloaderAttributes import DownloaderAttributes
-from Network.M3u8Playlist import PlaylistBuilder, PlaylistError, master_playlist, request_headers, select_variant
+from Network.M3u8Playlist import PlaylistBuilder, PlaylistError, master_playlist, remote_url, request_headers, select_variant
 
 
 def cleanup_workdir(parent, name, task_id=''):
@@ -139,12 +139,12 @@ class M3u8Downloader(QObject):
             self._state(DownloaderAttributes.States.resolving, '正在读取播放清单')
             self._request(self.attributes.url, lambda text, url: self._video_playlist(text, url, 0))
 
-    def _request(self, url, callback, resource=None, attempt=0):
+    def _request(self, url, callback, resource=None, attempt=0, redirects=0):
         if self._paused:
             return
         generation = self._generation
         request = QNetworkRequest(QUrl(url))
-        request.setAttribute(QNetworkRequest.FollowRedirectsAttribute, True)
+        request.setAttribute(QNetworkRequest.RedirectPolicyAttribute, QNetworkRequest.ManualRedirectPolicy)
         for name, value in request_headers(self.attributes.taskOptions, url).items():
             if '\r' in value or '\n' in value:
                 self._fail('请求头包含无效字符')
@@ -180,6 +180,8 @@ class M3u8Downloader(QObject):
             chunk = bytes(reply.readAll())
             try:
                 status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+                if 300 <= status < 400:
+                    return
                 if resource and resource.get('range') and status != 206:
                     raise ValueError('服务器不支持该分片的字节范围请求')
                 if status >= 400:
@@ -211,6 +213,16 @@ class M3u8Downloader(QObject):
                 self._file.close()
                 self._file = None
             status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+            destination = reply.attribute(QNetworkRequest.RedirectionTargetAttribute)
+            if destination and 300 <= status < 400:
+                reply.deleteLater()
+                try:
+                    if redirects >= 5:
+                        raise ValueError('资源重定向过多')
+                    self._request(remote_url(url,destination.toString()),callback,resource,attempt,redirects+1)
+                except ValueError as error:
+                    self._fail(str(error))
+                return
             if resource and resource.get('range') and status == 206:
                 start, length = resource['range']
                 expected = f'bytes {start}-{start + length - 1}/'.encode()

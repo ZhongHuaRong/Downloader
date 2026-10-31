@@ -152,12 +152,14 @@ class HttpsDownloader(QObject):
                 self.changeState(DownloaderAttributes.States.pause)
             
     # 单文件和编号批量继续使用同一下载通道；视频只补充请求上下文。
-    def _download_signal(self,url):
+    def _download_signal(self,url,redirects=0):
         if not self._tmpFile.isOpen() or not self._configFile.isOpen():
             self.changeState(DownloaderAttributes.States.fileOpenError)
             return False
         request = QNetworkRequest(QUrl(url))
-        request.setAttribute(QNetworkRequest.FollowRedirectsAttribute,True)
+        request.setAttribute(QNetworkRequest.RedirectPolicyAttribute,QNetworkRequest.ManualRedirectPolicy)
+        self._redirects = redirects
+        self._requestUrl = url
         self._resumeStart = self.attributes.preProgress
         if self._resumeStart:
             request.setRawHeader(b'Range', ('bytes=' + str(self._resumeStart) + '-').encode())
@@ -231,6 +233,17 @@ class HttpsDownloader(QObject):
     def downloadError(self,reply):
         if reply is not self._reply:
             reply.deleteLater()
+            return
+        status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        destination = reply.attribute(QNetworkRequest.RedirectionTargetAttribute)
+        if destination and 300 <= status < 400:
+            self._reply = None
+            reply.deleteLater()
+            target = QUrl(self._requestUrl).resolved(destination)
+            if self._redirects >= 5 or target.scheme() not in ('http','https'):
+                self._failed('下载地址重定向无效')
+                return
+            self._download_signal(target.toString(),self._redirects+1)
             return
         self._readReply()
         if reply is not self._reply:

@@ -22,6 +22,7 @@ def request_headers(options, url):
     origin = '{0.scheme}://{0.netloc}'.format(urlsplit(url)).lower()
     source = options.get('headers', {})
     scoped = options.get('headerOrigins', {}).get(origin, {})
+    scoped = dict(scoped, **options.get('headerUrls', {}).get(url, {}))
     original = urlsplit(options.get('headerUrl') or options.get('url', ''))
     same_origin = origin == '{0.scheme}://{0.netloc}'.format(original).lower()
     result = {}
