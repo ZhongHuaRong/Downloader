@@ -11,7 +11,6 @@ Window {
     height: 600
     color:"#ffffff"
     title: qsTr("辣鸡")
-    flags:Qt.WindowStaysOnTopHint
 
     onVisibilityChanged: {
         if(window.visibility == Window.Minimized){

@@ -1,1 +1,1 @@
-python ./src/main.pyw
+python.exe ./src/main.pyw
