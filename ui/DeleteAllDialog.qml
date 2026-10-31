@@ -5,13 +5,22 @@ Dialog {
     id:dialog
     property int taskCount: 0
 
-    title:qsTr("Delete All")
+    title:qsTr("全部删除")
     width:340
     modal:true
-    standardButtons:Dialog.Yes | Dialog.No
+    footer:DialogButtonBox {
+        Button {
+            text:qsTr("确定")
+            DialogButtonBox.buttonRole:DialogButtonBox.AcceptRole
+        }
+        Button {
+            text:qsTr("取消")
+            DialogButtonBox.buttonRole:DialogButtonBox.RejectRole
+        }
+    }
 
     contentItem:Label {
-        text:qsTr("Delete all %1 tasks in the current list?\nIncomplete downloads will be removed. Completed files will be kept.").arg(dialog.taskCount)
+        text:qsTr("确定删除当前列表中的全部 %1 个任务吗？\n未完成的下载文件将被删除，已完成的文件会保留。").arg(dialog.taskCount)
         wrapMode:Text.WordWrap
     }
 }
