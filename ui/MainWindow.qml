@@ -28,6 +28,7 @@ Item {
                     trashTab.item.insertNew(url,path,name,
                                             num,finishFile,total,curProgress)
                 }
+                onDeleteFiles:setting.deleteFiles(tasks)
                 onDeleteFile: {
                     mainWindow.deleteFile(path,name)
                 }
@@ -48,6 +49,7 @@ Item {
                     trashTab.item.insertNew(url,path,name,
                                             num,finishFile,total,curProgress)
                 }
+                onDeleteFiles:setting.deleteFiles(tasks)
                 onDeleteFile: {
                     mainWindow.deleteFile(path,name)
                 }
@@ -64,6 +66,7 @@ Item {
                 onToDownload: {
                     downloadTab.item.insertNew(url,path,name,num)
                 }
+                onDeleteFiles:setting.deleteFiles(tasks)
                 onDeleteFile: {
                     mainWindow.deleteFile(path,name)
                 }

@@ -303,10 +303,13 @@ class HttpsDownloader(QObject):
         self._configFile.remove()
         self.changeState(DownloaderAttributes.States.finish)
     
-    # 删除这次任务，当然，这里只是关闭文件而已
-    # 正真删除操作在setting类
-    # 因为只有正在下载的任务有这个类
-    # 重构后，可能在这里实现文件的删除操作
+    # 删除任务前停止下载并关闭文件，实际文件清理由设置管理器处理。
     def deleteFile(self):
+        if self._reply is not None and self._reply.isRunning():
+            try:
+                self._reply.downloadProgress.disconnect(self.writeFile)
+            except TypeError:
+                pass
+            self._reply.abort()
         self._tmpFile.close()
         self._configFile.close()

@@ -138,6 +138,12 @@ class SettingsManager(QObject):
         if file.exists():
             print(file.remove())
 
+    # 批量清理临时文件和续传配置。
+    @pyqtSlot("QVariantList")
+    def deleteFiles(self,tasks):
+        for task in tasks:
+            self.deleteFile(task["path"],task["name"])
+
     def _getThunderUrl(self,url):
         src = url.split('/')[-1]
         src = base64.b64decode(src)[2:-2]

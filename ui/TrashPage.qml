@@ -16,6 +16,7 @@ Item {
 
     signal toDownload(string url,string path,string name,string num)
     signal deleteFile(string path,string name)
+    signal deleteFiles(var tasks)
     signal viewOnExplorer(string path,string name)
 
     function insertNew(url,path,name,totalFile,
@@ -62,6 +63,24 @@ Item {
         else{
             page.deleteFile(p,n)
         }
+    }
+
+    function removeAllTasks(){
+        var tasks = []
+        for(var i = 0; i < listModel.count; i++){
+            var task = listModel.get(i)
+            tasks.push({path: task.path, name: task.name})
+        }
+        listModel.clear()
+        urlList = ""
+        pathList = ""
+        nameList = ""
+        numList = ""
+        finishList = ""
+        totalList = ""
+        progressList = ""
+        settings.sync()
+        page.deleteFiles(tasks)
     }
 
     function urlAppend(str){
@@ -208,6 +227,14 @@ Item {
         }
     }
 
+    DeleteAllDialog{
+        id:deleteAllDialog
+        taskCount:page.count
+        x:(page.width - width) / 2
+        y:(page.height - height) / 2
+        onAccepted:page.removeAllTasks()
+    }
+
     Settings{
         id:settings
         property alias trashUrl: page.urlList
@@ -235,8 +262,7 @@ Item {
                 width:listView.width - 10
                 height:80
                 //color:index == listView.currentIndex ? "#98F5FF" : "white"
-                anchors.left: parent.left
-                anchors.leftMargin: 5
+                x: 5
 
                 TextLoader{
                     id:fileNameText
@@ -337,6 +363,17 @@ Item {
                         onTriggered: {
                             popup.close()
                             page.removeTask(index,false)
+                        }
+                    }
+
+                    MenuSeparator{}
+
+                    Action{
+                        text:qsTr("Delete All")
+                        enabled:page.count > 0
+                        onTriggered: {
+                            popup.close()
+                            deleteAllDialog.open()
                         }
                     }
                 }

@@ -18,6 +18,8 @@ Item {
     signal toTrash(string url,string path,string name,string num,
                    string finishFile, string total,string curProgress)
     signal deleteFile(string path,string name)
+    signal deleteFiles(var tasks)
+    signal stopAllDownloads()
     signal viewOnExplorer(string path,string name)
 
     function insertNew(url,path,name,totalFile){
@@ -73,6 +75,23 @@ Item {
             page.deleteFile(p,
                             n)
         }
+    }
+
+    function removeAllTasks(){
+        var tasks = []
+        for(var i = 0; i < listModel.count; i++){
+            var task = listModel.get(i)
+            tasks.push({path: task.path, name: task.name})
+        }
+        page.stopAllDownloads()
+        listModel.clear()
+        urlList = ""
+        pathList = ""
+        nameList = ""
+        numList = ""
+        stateList = ""
+        settings.sync()
+        page.deleteFiles(tasks)
     }
 
     function urlAppend(str){
@@ -201,6 +220,14 @@ Item {
         }
     }
 
+    DeleteAllDialog{
+        id:deleteAllDialog
+        taskCount:page.count
+        x:(page.width - width) / 2
+        y:(page.height - height) / 2
+        onAccepted:page.removeAllTasks()
+    }
+
     Settings{
         id:settings
         property alias downloadUrl: page.urlList
@@ -226,8 +253,7 @@ Item {
                 width:listView.width - 10
                 height:80
                 //color:index == listView.currentIndex ? "#98F5FF" : "white"
-                anchors.left: parent.left
-                anchors.leftMargin: 5
+                x: 5
 
                 property real total: attributes?attributes.total:0
                 property int  curProgress: attributes?attributes.curProgress:0
@@ -268,6 +294,13 @@ Item {
 
                 DownloaderManager{
                     id:downloaderManager
+                }
+
+                Connections{
+                    target:page
+                    function onStopAllDownloads(){
+                        downloaderManager.deleteFile()
+                    }
                 }
 
                 onCurTimeChanged: {
@@ -487,11 +520,22 @@ Item {
                         checkable: false
                         onTriggered: {
                             popup.close()
-                            downloaderManager.deleteFile(path,name)
+                            downloaderManager.deleteFile()
                             page.removeTask(index,false,false,
                                             delegateItem.finishFile,
                                             delegateItem.total,
                                             delegateItem.curProgress)
+                        }
+                    }
+
+                    MenuSeparator{}
+
+                    Action{
+                        text:qsTr("Delete All")
+                        enabled:page.count > 0
+                        onTriggered: {
+                            popup.close()
+                            deleteAllDialog.open()
                         }
                     }
                 }
