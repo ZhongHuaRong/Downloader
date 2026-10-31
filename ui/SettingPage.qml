@@ -178,7 +178,7 @@ Item {
             }
 
             TextLoader{
-                text:qsTr("FFmpeg directory")
+                text:qsTr("FFmpeg 目录")
             }
 
             Row{
@@ -189,15 +189,17 @@ Item {
                     id:ffmpegEdit
                     objectName:"ffmpegDirectory"
                     width:parent.width - ffmpegBrowse.width - parent.spacing
-                    placeholderText:qsTr("Folder containing FFmpeg")
+                    placeholderText:qsTr("输入 FFmpeg 所在目录")
                     onEditingFinished:settingItem.ffmpegButtonClick()
                 }
 
                 CPushButton{
                     id:ffmpegBrowse
-                    text:qsTr("Browse...")
-                    width:80
-                    onClicked:ffmpegFolderDialog.open()
+                    text:"选择路径"
+                    height:ffmpegEdit.height
+                    onClicked: {
+                        fileDialog.open()
+                    }
                 }
             }
 
@@ -208,7 +210,7 @@ Item {
                 CPushButton{
                     id:ffmpegDetect
                     objectName:"ffmpegDetect"
-                    text:qsTr("Detect")
+                    text:qsTr("检测")
                     width:80
                     enabled:!setting.ffmpeg.checking
                     onClicked:settingItem.ffmpegButtonClick()
@@ -229,13 +231,14 @@ Item {
     }
 
     FileDialog{
-        id:ffmpegFolderDialog
+        id:fileDialog
         objectName:"ffmpegFolderDialog"
-        title:qsTr("Select FFmpeg Directory")
-        folder:shortcuts.desktop
+        title: "选择一个路径"
+        folder: shortcuts.desktop
         selectFolder:true
         onAccepted: {
-            ffmpegEdit.text = setting.ffmpeg.localDirectory(fileUrl)
+            var str  = fileDialog.fileUrls[0].split("file:///")
+            ffmpegEdit.text = str[1]
             settingItem.ffmpegButtonClick()
         }
     }

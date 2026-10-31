@@ -12,7 +12,7 @@ class FFmpegManager(QObject):
         super().__init__(parent)
         self._directory = ''
         self._executable = ''
-        self._status = 'Not configured'
+        self._status = '未配置'
         self._process = None
         self._candidates = []
 
@@ -36,17 +36,12 @@ class FFmpegManager(QObject):
     def checking(self):
         return self._process is not None
 
-    @pyqtSlot(QUrl, result=str)
-    def localDirectory(self, url):
-        path = url.toLocalFile()
-        return str(Path(path)) if path else ''
-
     @pyqtSlot()
     def invalidate(self):
         process = self._process
         self._process = None
         self._executable = ''
-        self._status = 'Not checked'
+        self._status = '未检测'
         self._candidates = []
         if process is not None:
             process.kill()
@@ -67,9 +62,9 @@ class FFmpegManager(QObject):
             folder = None
         self._directory = str(folder) if folder is not None else directory
         if not directory:
-            self._status = 'Not configured'
+            self._status = '未配置'
         elif folder is None or not folder.is_dir():
-            self._status = 'Directory not found'
+            self._status = '目录不存在'
         else:
             name = 'ffmpeg.exe' if os.name == 'nt' else 'ffmpeg'
             pattern = 'ffmpeg*.exe' if os.name == 'nt' else 'ffmpeg*'
@@ -81,21 +76,21 @@ class FFmpegManager(QObject):
             if self._candidates:
                 self._startCheck(self._candidates.pop(0))
                 return
-            self._status = 'FFmpeg executable not found'
+            self._status = '未找到 FFmpeg 可执行文件'
         self.changed.emit()
 
     def _startCheck(self, executable):
         process = QProcess(self)
         self._process = process
-        self._status = 'Checking...'
+        self._status = '正在检测...'
         process.setProcessChannelMode(QProcess.MergedChannels)
         timeout = QTimer(process)
         timeout.setSingleShot(True)
-        timeout.timeout.connect(lambda: self._finishCheck(process, 'FFmpeg check timed out'))
+        timeout.timeout.connect(lambda: self._finishCheck(process, '检测超时'))
         process.finished.connect(timeout.stop)
         process.errorOccurred.connect(timeout.stop)
         process.finished.connect(lambda code, status: self._checked(process, executable, code, status))
-        process.errorOccurred.connect(lambda error: self._finishCheck(process, 'Could not start FFmpeg'))
+        process.errorOccurred.connect(lambda error: self._finishCheck(process, '无法启动 FFmpeg'))
         self.changed.emit()
         timeout.start(5000)
         process.start(executable, ['-version'])
@@ -109,7 +104,7 @@ class FFmpegManager(QObject):
         output = bytes(process.readAllStandardOutput()).decode('utf-8', errors='replace')
         valid = code == 0 and status == QProcess.NormalExit and any(
             line.startswith('ffmpeg version ') for line in output.splitlines())
-        self._finishCheck(process, 'FFmpeg detected' if valid else 'FFmpeg check failed',
+        self._finishCheck(process, '检测成功' if valid else '检测失败',
                           executable if valid else '')
 
     def _finishCheck(self, process, status, executable=''):
@@ -129,7 +124,7 @@ class FFmpegManager(QObject):
     def createProcess(self, parent=None):
         """Create a task process using the successfully detected executable."""
         if not self.ready or not Path(self._executable).is_file():
-            raise RuntimeError('Configure and detect FFmpeg before starting a task.')
+            raise RuntimeError('请先配置并检测 FFmpeg，再开始任务。')
         process = QProcess(parent)
         process.setProgram(self._executable)
         return process
