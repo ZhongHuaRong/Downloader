@@ -10,6 +10,7 @@ from PyQt5.QtNetwork import QNetworkProxy
 from Core.Enum import UrlType
 from Core.FFmpegManager import FFmpegManager
 from Core.VideoExtractor import VideoExtractor
+from Core.VideoBrowser import published_date
 from Network.M3u8Downloader import cleanup_workdir
 
 class SettingsManager(QObject):
@@ -40,19 +41,24 @@ class SettingsManager(QObject):
 
     @staticmethod
     def cleanVideoName(name):
-        name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name).strip().rstrip('.')
+        name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name).strip().rstrip(' .')
         if not name:
             name = 'video'
-        stem = name.split('.', 1)[0].upper()
+        stem = name.split('.', 1)[0].strip(' .').upper()
         if stem in {'CON', 'PRN', 'AUX', 'NUL'} or re.fullmatch(r'(COM|LPT)[1-9]', stem):
             name = '_' + name
-        return name[:180]
+        if len(name) > 180:
+            suffix = Path(name).suffix
+            suffix = suffix if len(suffix) <= 12 else ''
+            name = name[:180-len(suffix)].rstrip(' .') + suffix
+        return name
 
     @pyqtSlot(str, str, result=str)
     def videoFileName(self, url, kind):
         name = QUrl(url).fileName() or 'video'
         if kind == 'm3u8':
-            name = (name.rsplit('.', 1)[0] if '.' in name else name) + '.mkv'
+            name = (name.rsplit('.', 1)[0] if '.' in name else name) or 'video'
+            name += '.mkv'
         elif not Path(name).suffix:
             name += '.mp4'
         return self.cleanVideoName(name)
@@ -63,8 +69,11 @@ class SettingsManager(QObject):
         title = title.strip()
         if not title:
             return current_name
-        if date and date not in title:
+        dates = re.findall(r'\d{4}\s*[-/.年]\s*\d{1,2}\s*[-/.月]\s*\d{1,2}',title)
+        if date and date not in [published_date(value) for value in dates]:
             title = '[' + date + '] ' + title
+        if title.lower().endswith(extension.lower()):
+            title = title[:-len(extension)]
         return self.cleanVideoName(title) + extension
 
     def _reserveVideoName(self, name, path, occupied, options=None):
@@ -106,7 +115,8 @@ class SettingsManager(QObject):
                 if kind == 'm3u8' and not self._ffmpeg.ready:
                     raise ValueError('请先在设置中检测 FFmpeg')
                 url = str(task.get('url', '')).strip()
-                if QUrl(url).scheme().lower() not in ('http', 'https'):
+                parsed = QUrl(url)
+                if not parsed.isValid() or not parsed.host() or parsed.scheme().lower() not in ('http', 'https'):
                     raise ValueError('视频地址无效')
                 name = str(task.get('name', '')).strip()
                 if not name:

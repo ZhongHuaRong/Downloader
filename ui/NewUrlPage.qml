@@ -12,6 +12,10 @@ Item {
     signal newVideoTasks(var tasks,string path)
     signal inspectM3u8(string url)
     signal cancelVideo()
+    signal recognizeVideo(string url,bool manual)
+    signal finishVideoRecognition()
+    signal stopVideoRecognition()
+    signal previewVideo(string resourceId,bool force)
 
     function configureSource(){
         if(!loader.item)
@@ -123,6 +127,11 @@ Item {
         anchors.bottomMargin: 0
 
         onLoaded:urlPage.configureSource()
+
+        function recognizeVideo(url,manual){urlPage.recognizeVideo(url,manual)}
+        function finishRecognition(){urlPage.finishVideoRecognition()}
+        function stopRecognition(){urlPage.stopVideoRecognition()}
+        function previewVideo(resourceId,force){urlPage.previewVideo(resourceId,force)}
 
         function videoDownload(tasks){
             urlPage.newVideoTasks(tasks,targetEdit.text)

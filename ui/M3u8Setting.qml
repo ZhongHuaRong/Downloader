@@ -4,11 +4,14 @@ import QtQuick.Controls 1.4
 Item {
     id:m3u8Item
     property string url: ""
+    property string selectedVariant:""
     property var resource: setting.video.resources.length ? setting.video.resources[0] : null
+    property string variantsJson:JSON.stringify(resource ? resource.variants : [])
     property alias fileName: nameEdit.text
 
     function setMsg(baseUrl, name, path){
         url = baseUrl
+        selectedVariant = ""
         nameEdit.text = name
         m3u8Item.parent.inspectVideo(url)
     }
@@ -51,7 +54,14 @@ Item {
                     objectName:"m3u8Quality"
                     width:180
                     height:30
-                    model:m3u8Item.resource ? m3u8Item.resource.variants.map(function(item){return item.label}) : []
+                    currentIndex:{
+                        var values = JSON.parse(m3u8Item.variantsJson)
+                        for(var n = 0; n < values.length; n++)
+                            if(values[n].url == m3u8Item.selectedVariant) return n
+                        return 0
+                    }
+                    onActivated:m3u8Item.selectedVariant = JSON.parse(m3u8Item.variantsJson)[currentIndex].url
+                    model:JSON.parse(m3u8Item.variantsJson).map(function(item){return item.label})
                 }
             }
 

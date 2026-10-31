@@ -91,7 +91,11 @@ Item {
             NewUrlPage{
                 settingItem: settingTab.item
                 onInspectM3u8:setting.video.inspectM3u8(url)
-                onCancelVideo:setting.video.cancel()
+                onCancelVideo:setting.video.reset()
+                onRecognizeVideo:setting.video.recognize(url,manual)
+                onFinishVideoRecognition:setting.video.finishRecognition()
+                onStopVideoRecognition:setting.video.cancel()
+                onPreviewVideo:setting.video.preview(resourceId,force)
                 onNewVideoTasks: {
                     var ready = setting.prepareVideoTasks(tasks,path,downloadTab.item.activeNames(path))
                     for(var i = 0; i < ready.length; i++){
