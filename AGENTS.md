@@ -8,6 +8,8 @@ Windows 桌面下载器，使用 Python、PyQt5 和 QML。从仓库根目录运�
 - `src/Network/`：下载管理、网络请求、进度和续传。
 - `src/Core/`：设置、URL 解析、文件命名及解压。
 - `ui/`：QML 页面和公共控件。
+- `tools/`：独立验证工具，保留 `tools/probe_video.py` 用于媒体识别和预览测试。
+- `docs/`：功能设计和实施方案；视频下载见 `docs/video-download-plan.md`。
 - `sdk/`：7-Zip 工具。
 - `Downloader.pro`、`src/main.cpp`、`qml.qrc`：遗留 Qt/C++ 工程。
 

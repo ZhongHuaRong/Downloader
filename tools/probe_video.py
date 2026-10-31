@@ -1,10 +1,10 @@
 """网页媒体地址探测，网址在本机输入。
 
 安装：python.exe -m pip install playwright
-运行：python.exe probe_video.py
-仅检查网页源码：python.exe probe_video.py --static-only
-可选保存结果：python.exe probe_video.py --output C:\\Temp\\video_probe.json
-指定预览页：python.exe probe_video.py --report C:\\Temp\\video_preview.html
+运行：python.exe tools/probe_video.py
+仅检查网页源码：python.exe tools/probe_video.py --static-only
+可选保存结果：python.exe tools/probe_video.py --output C:\\Temp\\video_probe.json
+指定预览页：python.exe tools/probe_video.py --report C:\\Temp\\video_preview.html
 
 默认打开独立浏览器窗口，手动点击播放后监听 60 秒。
 结束后打开本地预览页，显示播放器截图、时长、清晰度及候选地址。
