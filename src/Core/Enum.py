@@ -6,6 +6,7 @@ class UrlType(Enum):
     Unknown             = 0 # 未知类型，用于标识非URL
     Https               = 1 # http下载，用于下载服务器文件
     BitTorrent          = 2 # BT下载，BT下载首先要下载种子，属于Http下载
+    M3u8                = 4 # m3u8 点播视频
     Magnet              = 3 # 磁力链接
 
 class TaskState(Enum):

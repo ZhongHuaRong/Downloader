@@ -6,6 +6,7 @@ Item {
     id:page
 
     property alias count: listView.count
+    property string optionsList: "[]"
     property string urlList: ""
     property string pathList: ""
     property string nameList: ""
@@ -14,26 +15,34 @@ Item {
     property string totalList: ""
     property string progressList: ""
 
-    signal toDownload(string url,string path,string name,string num)
+    signal toDownload(string url,string path,string name,string num, var taskOptions)
     signal toTrash(string url,string path,string name,string num,
-                   string finishFile, string total,string curProgress)
-    signal deleteFile(string path,string name)
+                   string finishFile, string total,string curProgress, var taskOptions)
+    signal deleteFile(string path,string name, var taskOptions)
     signal deleteFiles(var tasks)
     signal viewOnExplorer(string path,string name)
 
-    function insertNew(url,path,name,totalFile,
-                       finishFile,
-                       total,
-                       curProgress){
-        listModel.append({
-                             url:url,
-                             path:path,
-                             name:name,
-                             files:totalFile,
-                             finish:finishFile,
-                             total:total,
-                             progress:curProgress
-                         })
+    function optionsAt(index){
+        var values = JSON.parse(optionsList || "[]")
+        return values[index] || {}
+    }
+
+    function appendOptions(options){
+        var values = JSON.parse(optionsList || "[]")
+        while(values.length < listModel.count)
+            values.push({})
+        values.push(options || {})
+        optionsList = JSON.stringify(values)
+    }
+
+    function removeOptions(index){
+        var values = JSON.parse(optionsList || "[]")
+        values.splice(index, 1)
+        optionsList = JSON.stringify(values)
+    }
+
+    function insertNew(url,path,name,totalFile,finishFile,total,curProgress,taskOptions){
+        appendOptions(taskOptions)
         urlAppend(url)
         pathAppend(path)
         nameAppend(name)
@@ -41,6 +50,9 @@ Item {
         finishAppend(finishFile)
         totalAppend(total)
         progressAppend(curProgress)
+        listModel.append({url:url, path:path, name:name, files:String(totalFile),
+                          finish:String(finishFile), total:String(total), progress:String(curProgress),
+                          optionsJson:JSON.stringify(taskOptions || {})})
     }
 
     function removeTask(index,toDownload,toRecycleBin,
@@ -49,6 +61,7 @@ Item {
         var p = listModel.get(index).path
         var n = listModel.get(index).name
         var f = listModel.get(index).files
+        var options = optionsAt(index)
         urlRemove(index)
         pathRemove(index)
         nameRemove(index)
@@ -56,22 +69,23 @@ Item {
         finishRemove(index)
         totalRemove(index)
         progressRemove(index)
+        removeOptions(index)
         listModel.remove(index)
         if(toDownload){
             page.toDownload(u,
                             p,
                             n,
-                            f)
+                            f, options)
         }
         else if(toRecycleBin){
             page.toTrash(u,
                          p,
                          n,
                          f,
-                         finishFile,total,curProgress)
+                         finishFile,total,curProgress,options)
         }
         else{
-            page.deleteFile(p,n)
+            page.deleteFile(p,n,options)
         }
     }
 
@@ -79,9 +93,10 @@ Item {
         var tasks = []
         for(var i = 0; i < listModel.count; i++){
             var task = listModel.get(i)
-            tasks.push({path: task.path, name: task.name})
+            tasks.push({path: task.path, name: task.name, options: optionsAt(i)})
         }
         listModel.clear()
+        optionsList = "[]"
         urlList = ""
         pathList = ""
         nameList = ""
@@ -230,6 +245,7 @@ Item {
                                  url:ul[n],
                                  path:pl[n],
                                  name:nl[n],
+                                 optionsJson:JSON.stringify(optionsAt(n - 1)),
                                  files:numl[n],
                                  finish:fl[n],
                                  total:tl[n],
@@ -248,6 +264,7 @@ Item {
 
     Settings{
         id:settings
+        property alias finishOptions: page.optionsList
         property alias finishUrl: page.urlList
         property alias finishPath: page.pathList
         property alias finishName: page.nameList

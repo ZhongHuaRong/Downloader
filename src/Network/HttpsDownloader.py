@@ -3,11 +3,13 @@ import time
 import logging
 import os
 import json
+import re
 from PyQt5.Qt import QApplication, Qt, QObject
 from PyQt5.Qt import pyqtSlot, pyqtSignal, pyqtProperty
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PyQt5.Qt import QThread, QUrl, QFile, QDir, QJsonDocument
 from Network.DownloaderAttributes import DownloaderAttributes
+from Network.M3u8Playlist import request_headers
 
 class HttpsDownloader(QObject):
     # pyqtSignal
@@ -73,7 +75,11 @@ class HttpsDownloader(QObject):
         if self._tmpFile.isOpen():
             self._tmpFile.close()
         self._tmpFile.setFileName(self.attributes.path + tempname)
-        self._tmpFile.open(QFile.Append)
+        self._tmpFile.open(QFile.ReadWrite)
+        if self._tmpFile.size() < self.attributes.preProgress:
+            self.attributes.preProgress = 0
+            self.attributes.curProgress = 0
+        self._tmpFile.resize(self.attributes.preProgress)
         self._tmpFile.seek(self.attributes.preProgress)
 
     # 保存config
@@ -94,6 +100,8 @@ class HttpsDownloader(QObject):
         if len(cfg) <= 0:
             return False
         j = QJsonDocument.fromJson(cfg).object()
+        if not j or "filename" not in j:
+            return False
         self.attributes.fromJson(j)
         return True
         
@@ -143,173 +151,170 @@ class HttpsDownloader(QObject):
             else:
                 self.changeState(DownloaderAttributes.States.pause)
             
-    # 下载单个文件
-    # total用来表示文件大小，这样的优点在于预加载就可以显示文件大小的信息
+    # 单文件和编号批量继续使用同一下载通道；视频只补充请求上下文。
     def _download_signal(self,url):
-        
-        request = QNetworkRequest()        
-        request.setRawHeader(str("Range").encode(),str("bytes=" + str(self.attributes.preProgress) + "-").encode())
-        # 设置自动重定向,之前自己实现的链接跳转就可以去掉了
+        if not self._tmpFile.isOpen() or not self._configFile.isOpen():
+            self.changeState(DownloaderAttributes.States.fileOpenError)
+            return False
+        request = QNetworkRequest(QUrl(url))
         request.setAttribute(QNetworkRequest.FollowRedirectsAttribute,True)
-        request.setUrl(QUrl(url))
-
+        self._resumeStart = self.attributes.preProgress
+        if self._resumeStart:
+            request.setRawHeader(b'Range', ('bytes=' + str(self._resumeStart) + '-').encode())
+        for name, value in request_headers(self.attributes.taskOptions, url).items():
+            if '\r' in value or '\n' in value:
+                self.attributes.message = '请求头包含无效字符'
+                self.changeState(DownloaderAttributes.States.downloadError)
+                return False
+            request.setRawHeader(name.encode('ascii'),value.encode('utf-8'))
+        self._headersChecked = False
+        self.attributes.message = ''
+        self.attributes.curProgress = self._resumeStart
+        reply = self._manager.get(request)
+        self._reply = reply
+        reply.readyRead.connect(self._readReply)
+        reply.downloadProgress.connect(self.writeFile)
+        reply.finished.connect(lambda: self.downloadError(reply))
         self.changeState(DownloaderAttributes.States.downloading)
-        self._reply = self._manager.get(request)
-        self._reply.downloadProgress.connect(self.writeFile)
-        self._reply.finished.connect(self.downloadError)
         return True
 
-    # 下载多个文件
-    def _download_mult(self):
-        # 任务开始前先重置下载进度
-        name = self.attributes.url.split('/')[-1].split('.')
-        newNum = str(int(name[0]) + self.attributes.finishFile).zfill(len(name[0]))
-        newNum = newNum + "." + name[1]
-        self.attributes.fileName = newNum
-        url = self.attributes.url[:self.attributes.url.rfind('/') + 1] + newNum
-        self._openTemp()
-        print(url)
-        self._download_signal(url)
-        pass
+    def _acceptReply(self,reply):
+        if self._headersChecked:
+            return True
+        status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
+        if not status or 300 <= status < 400:
+            return False
+        if not 200 <= status < 300:
+            self._failed('下载失败，HTTP ' + str(status))
+            return False
+        if status == 206:
+            value = bytes(reply.rawHeader(b'Content-Range')).decode('ascii', errors='replace')
+            match = re.fullmatch(r'bytes (\d+)-(\d+)/(\d+|\*)',value)
+            if not match or int(match[1]) != self._resumeStart:
+                self._failed('服务器返回的续传范围不正确')
+                return False
+            self.attributes.total = int(match[3]) if match[3] != '*' else 0
+        else:
+            # 不支持 Range 的服务器会重发整个文件，先清空旧半片再重新写入。
+            self._resumeStart = 0
+            self.attributes.preProgress = 0
+            self.attributes.curProgress = 0
+            self._tmpFile.resize(0)
+            self._tmpFile.seek(0)
+            length = bytes(reply.rawHeader(b'Content-Length')).decode('ascii', errors='replace')
+            self.attributes.total = int(length) if length.isdigit() else 0
+        self._headersChecked = True
+        return True
 
-    # 把数据写入文件的指令
-    def _writeFile(self,data):
+    def _readReply(self):
+        reply = self._reply
+        if reply is None or not self._acceptReply(reply):
+            return
+        data = reply.readAll()
+        if not data:
+            return
         self._tmpFile.seek(self.attributes.curProgress)
-        b = self._tmpFile.writeData(data)
-        return b
-    
-    # 槽函数
-    # 用于任务终止时输出错误信息，下载完成也会触发
-    @pyqtSlot()
-    def downloadError(self):
-        print("IOError",self._reply.errorString())
-        print("NetworkError",self._reply.error())
-        logging.info("IOError" + self._reply.errorString())
+        written = self._tmpFile.write(data)
+        if written != len(data):
+            self._failed('无法写入下载文件',DownloaderAttributes.States.fileWriteError)
+            return
+        self._tmpFile.flush()
+        self.attributes.curProgress += written
+        self.attributes.curTime = int(time.time())
+        self._saveConfig()
 
-    # 槽函数
-    # 把下载的内容写入文件
-    # receive:已接收的字节数
-    # total:文件总大小
     @pyqtSlot("qint64","qint64")
     def writeFile(self,receive,total):
-        # print("receive",receive)
-        # print("total",total)
-        # print(self._reply.error())
+        if self._reply is not None and self._acceptReply(self._reply) and total > 0:
+            self.attributes.total = total + self._resumeStart
 
-        if total <= 0 :
-            # -1有可能是下载错误
-            if receive <= 0:
-                self.changeState(DownloaderAttributes.States.networkError)
-                # 这里不打算中断网络链接，经过观察再决定这里是否中断
-                return
-            else:
-                # 这种情况是total返回-1，但是实际上是有下载的
-                self.changeState(DownloaderAttributes.States.totalLessThanZero)
-
-        # 这里是刚开始下载的时候，total默认是0,设置下载的文件大小
-        if self.attributes.total != total:
-            self.attributes.total = total + self.attributes.preProgress
-            if self._tmpFile.isOpen():
-                if self._tmpFile.size() < total:
-                   self._tmpFile.resize(total)
-            else:
-                self.changeState(DownloaderAttributes.States.fileOpenError)
-                return
-        
-        # 这里是暂停续传部分，因为更改了暂停机制，在暂停前取消信号连接，
-        # 所以这里基本不存在触发的情况
-        if self.attributes._state == DownloaderAttributes.States.pause:
-            # 暂停触发，不处理后面接受到的字节数
-            if self._reply.isRunning():
-                # 如果reply还没有关闭则关闭下载通道
-                # 这个在软件重开续传和预读头文件的时候预防下载通道还没关闭的情况
-                self._reply.downloadProgress.disconnect(self.writeFile)
-                self._reply.abort()
+    def downloadError(self,reply):
+        if reply is not self._reply:
+            reply.deleteLater()
             return
-        elif not self._reply.isOpen():
-            if self.attributes.curProgress == self.attributes.total:
-                # 其实这里已经排除abort触发的情况因为在abort之前已经断开信号连接
-                # 这里的条件判断以及输出是用于日志输出
-                print("abort 触发")
-                pass
-            else:
-                # 如果不是因为暂停而关闭reply的通道的情况则需要通报用户下载失败
-                self.changeState(DownloaderAttributes.States.networkError)
-                return
-        else:
-            #  正常情况
-            data = self._reply.readAll()
-            if len(data) == 0:
-                #  没有数据读取
-                if self._reply.error() == QNetworkReply.NoError:
-                    self.success()
-                else:
-                    self.changeState(DownloaderAttributes.States.networkError)
-                return
-            if self._tmpFile.writeData(data) <= 0:
-                self.changeState(DownloaderAttributes.States.fileWriteError)
-                return
-            
-        # 获取时间戳，因为我不知道qml如何获取，然后发射信号给qml更新界面
-        self._tmpFile.flush()
-        self.attributes.curTime = int(time.time())
-        self.attributes.curProgress = receive + self.attributes.preProgress
-        self._saveConfig()
-        # 下载完成的处理，不使用finish是因为那个信号啥都会触发
-        if self.attributes.curProgress == self.attributes.total:
-            self.success()
+        self._readReply()
+        if reply is not self._reply:
+            return
+        if reply.error() != QNetworkReply.NoError or not self._headersChecked:
+            self._failed('网络下载失败：' + reply.errorString())
+            return
+        self._reply = None
+        reply.deleteLater()
+        if self.attributes.total and self.attributes.curProgress != self.attributes.total:
+            self._failed('下载文件不完整')
+            return
+        self.attributes.total = self.attributes.curProgress
+        self.success()
 
-    # 槽函数
-    # 暂停/继续下载
-    @pyqtSlot(bool)
+    def _stopReply(self):
+        reply, self._reply = self._reply, None
+        if reply is not None:
+            try:
+                reply.readyRead.disconnect(self._readReply)
+                reply.downloadProgress.disconnect(self.writeFile)
+            except TypeError:
+                pass
+            reply.abort()
+            reply.deleteLater()
+
+    def _failed(self,message,state=None):
+        self._stopReply()
+        self.attributes.preProgress = self.attributes.curProgress
+        self.attributes.message = message
+        self.changeState(state or DownloaderAttributes.States.networkError)
+        self._saveConfig()
+
+    # 下载多个文件，保留原有漫画目录和连续编号规则。
+    def _download_mult(self):
+        url = QUrl(self.attributes.url)
+        stem, separator, suffix = url.fileName().rpartition('.')
+        if not separator or not stem.isdigit():
+            self._failed('批量下载地址的文件名需要使用连续数字编号')
+            return
+        name = str(int(stem) + self.attributes.finishFile).zfill(len(stem)) + '.' + suffix
+        self.attributes.fileName = name
+        url.setPath(url.path()[:url.path().rfind('/') + 1] + name)
+        self._openTemp()
+        self._download_signal(url.toString())
+
+    @pyqtSlot()
     def pauseDown(self):
         if self.attributes._state == DownloaderAttributes.States.downloading:
-            # 正在下载，应该处理暂停
-            self.changeState(DownloaderAttributes.States.pause)
-            if self._reply != None and self._reply.isRunning():
-                self._reply.downloadProgress.disconnect(self.writeFile)
-                self._reply.abort()
+            self._stopReply()
             self.attributes.preProgress = self.attributes.curProgress
+            self.changeState(DownloaderAttributes.States.pause)
+            self._saveConfig()
+        elif self.attributes.totalFile > 1:
+            self._download_mult()
         else:
-            self.changeState(DownloaderAttributes.States.downloading)
-            if self.attributes.totalFile > 1:
-                self._download_mult()
-            else:
-                self._download_signal(self.attributes.url)
+            self._download_signal(self.attributes.url)
 
-    # 槽函数
-    # 下载成功，设置标志位finish为true，然后停止下载.
     @pyqtSlot()
     def success(self):
-        self.attributes.completedOne()
-        # 虽然下载完成，但是还是需要关闭通道
-        # 这里解决了只能下载第一个文件的情况，也解决了下载完成所有任务后，多下载两个文件
-        # 貌似是下载文件时多次触发success，所以要断开信号和关闭下载通道
-        self._reply.downloadProgress.disconnect(self.writeFile)
-        self._reply.abort()
         name = self.attributes.checkFileName(self.attributes.fileName,self.attributes.path)
-        self._tmpFile.rename(self.attributes.path + name)
+        self._tmpFile.resize(self.attributes.curProgress)
         self._tmpFile.close()
-        # 下载完所有文件，同样适用于下载单个文件
-        if self.attributes.finishFile == self.attributes.totalFile:
-            pass
-        else:
-            # 这个情况只有下载多个文件的时候才会出现
-            # 重置多个文件下载时的参数
+        if not self._tmpFile.rename(self.attributes.path + name):
+            self.attributes.message = '无法保存下载文件'
+            self.changeState(DownloaderAttributes.States.fileWriteError)
+            return
+        self.attributes.completedOne()
+        if self.attributes.totalFile == 1:
+            self.attributes.fileName = name
+            self.attributes.taskName = name
+        if self.attributes.finishFile < self.attributes.totalFile:
             self.attributes.downloadParamReset()
             self._saveConfig()
             self._download_mult()
             return
         self._configFile.remove()
         self.changeState(DownloaderAttributes.States.finish)
-    
+
     # 删除任务前停止下载并关闭文件，实际文件清理由设置管理器处理。
     def deleteFile(self):
-        if self._reply is not None and self._reply.isRunning():
-            try:
-                self._reply.downloadProgress.disconnect(self.writeFile)
-            except TypeError:
-                pass
-            self._reply.abort()
+        self._stopReply()
+        if self._configFile.isOpen():
+            self.attributes.preProgress = self.attributes.curProgress
+            self._saveConfig()
         self._tmpFile.close()
         self._configFile.close()

@@ -9,7 +9,7 @@ from PyQt5.QtCore import QJsonDocument
 from PyQt5.QtCore import QJsonValue
 
 class DownloaderAttributes(QObject):
-    UrlType = Enum('Type', ( 'Unknown', 'Null', 'Https', 'BitTorrent','Magnet'))
+    UrlType = Enum('Type', ( 'Unknown', 'Null', 'Https', 'BitTorrent','Magnet','M3u8'))
     States = Enum('State', ( # 该枚举类型用于更新UI
         'downloadError',    # 下载错误
         'NoDownload',       # 未开始下载，任务未开始
@@ -19,7 +19,9 @@ class DownloaderAttributes(QObject):
         'fileOpenError',    # 文件打开错误
         'fileWriteError',   # 文件写入错误
         'networkError',     # 网络错误
-        'totalLessThanZero' # 这个错误是获取到的文件总大小为-1，暂时设置用于显示错误
+        'totalLessThanZero', # 这个错误是获取到的文件总大小为-1，暂时设置用于显示错误
+        'resolving',       # 读取视频播放清单
+        'merging'          # 合并视频
         )
     )
     # 初始化函数
@@ -43,6 +45,8 @@ class DownloaderAttributes(QObject):
 
         self._totalFile = 1
         self._finishFile = 0
+        self._taskOptions = {}
+        self._message = ''
 
     totalChanged = pyqtSignal()
     curProgressChanged = pyqtSignal()
@@ -56,10 +60,12 @@ class DownloaderAttributes(QObject):
     totalFileChanged = pyqtSignal()
     finishFileChanged = pyqtSignal()
     stateChanged = pyqtSignal()
+    taskOptionsChanged = pyqtSignal()
+    messageChanged = pyqtSignal()
 
     # 类的属性，提供给qml使用# # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # # # # # # # # # # total# # # # # # # # # # # # # # # 
-    @pyqtProperty(int,notify = totalChanged)
+    @pyqtProperty('qint64',notify = totalChanged)
     def total(self):
         return self._total
 
@@ -68,7 +74,7 @@ class DownloaderAttributes(QObject):
         self._total = value
         self.totalChanged.emit()
     # # # # # # # # # # # # # # # # curProgress# # # # # # # # # # # # # # # # 
-    @pyqtProperty(int,notify = curProgressChanged)
+    @pyqtProperty('qint64',notify = curProgressChanged)
     def curProgress(self):
         return self._curProgress
 
@@ -77,7 +83,7 @@ class DownloaderAttributes(QObject):
         self._curProgress = value
         self.curProgressChanged.emit()
     # # # # # # # # # # # # # # # # preProgress# # # # # # # # # # # # # # # # 
-    @pyqtProperty(int,notify = preProgressChanged)
+    @pyqtProperty('qint64',notify = preProgressChanged)
     def preProgress(self):
         return self._preProgress
 
@@ -92,7 +98,7 @@ class DownloaderAttributes(QObject):
 
     @curTime.setter
     def curTime(self, value):
-        self._curTime = value
+        self._curTime = int(value)
         self.curTimeChanged.emit()
     # # # # # # # # # # # # # # # # # startTime# # # # # # # # # # # # # # # # 
     @pyqtProperty(int,notify = startTimeChanged)
@@ -101,7 +107,7 @@ class DownloaderAttributes(QObject):
 
     @startTime.setter
     def startTime(self, value):
-        self._startTime = value
+        self._startTime = int(value)
         self.startTimeChanged.emit()
     # # # # # # # # # # # # # # # # # # # # # url# # # # # # # # # # # # # # # 
     @pyqtProperty(str,notify = urlChanged)
@@ -154,6 +160,24 @@ class DownloaderAttributes(QObject):
         return self._finishFile
     # 类的属性，提供给qml使用# # # # # # # # # # # # # # # # # # # # # # # 
 
+    @pyqtProperty('QVariantMap', notify=taskOptionsChanged)
+    def taskOptions(self):
+        return self._taskOptions
+
+    @taskOptions.setter
+    def taskOptions(self, value):
+        self._taskOptions = dict(value or {})
+        self.taskOptionsChanged.emit()
+
+    @pyqtProperty(str, notify=messageChanged)
+    def message(self):
+        return self._message
+
+    @message.setter
+    def message(self, value):
+        self._message = value
+        self.messageChanged.emit()
+
     def setState(self,value):
         if self._state == value:
             return
@@ -190,6 +214,7 @@ class DownloaderAttributes(QObject):
             DownloaderAttributes.UrlType.Unknown:"Unknown",
             DownloaderAttributes.UrlType.Null:"Null",
             DownloaderAttributes.UrlType.Https:"Https",
+            DownloaderAttributes.UrlType.M3u8:"M3u8",
             DownloaderAttributes.UrlType.BitTorrent:"BitTorrent",
         }.get(self._type,"Unknown")
 
@@ -201,6 +226,8 @@ class DownloaderAttributes(QObject):
             DownloaderAttributes.States.downloading:"downloading",
             DownloaderAttributes.States.pause:"pause",
             DownloaderAttributes.States.finish:"finish",
+            DownloaderAttributes.States.resolving:"resolving",
+            DownloaderAttributes.States.merging:"merging",
             DownloaderAttributes.States.fileOpenError:"fileOpenError",
             DownloaderAttributes.States.fileWriteError:"fileWriteError",
             DownloaderAttributes.States.networkError:"networkError",
@@ -213,6 +240,7 @@ class DownloaderAttributes(QObject):
             "Unknown" : DownloaderAttributes.UrlType.Unknown,
             "Null" : DownloaderAttributes.UrlType.Null,
             "Https" : DownloaderAttributes.UrlType.Https,
+            "M3u8" : DownloaderAttributes.UrlType.M3u8,
             "BitTorrent" : DownloaderAttributes.UrlType.BitTorrent,
         }.get(str,DownloaderAttributes.UrlType.Unknown)
         return self._type
@@ -225,6 +253,8 @@ class DownloaderAttributes(QObject):
             "downloading" : DownloaderAttributes.States.downloading,
             "pause" : DownloaderAttributes.States.pause,
             "finish" : DownloaderAttributes.States.finish,
+            "resolving" : DownloaderAttributes.States.resolving,
+            "merging" : DownloaderAttributes.States.merging,
             "fileOpenError" : DownloaderAttributes.States.fileOpenError,
             "fileWriteError" : DownloaderAttributes.States.fileWriteError,
             "networkError" : DownloaderAttributes.States.networkError,
@@ -244,22 +274,25 @@ class DownloaderAttributes(QObject):
         j["totalFile"] = self.totalFile
         j["finishFile"] = self.finishFile
         j["fileSize"] = self._total
+        j["taskOptions"] = self.taskOptions
         return j
 
     # 输出json格式的字符串
     def fromJson(self,j):
-        print(j)
-        self.setString2Type(j["type"].toString())
-        self.setString2State(j["state"].toString())
-        self.url = j["url"].toString()
-        self.fileName = j["filename"].toString()
-        self.preProgress = j["curProgress"].toInt()
+        def value(name, default):
+            result = j.get(name, default)
+            return result.toVariant() if hasattr(result, 'toVariant') else result
+        self.setString2Type(value('type', 'Https'))
+        self.setString2State(value('state', 'pause'))
+        self.url = str(value('url', ''))
+        self.fileName = str(value('filename', ''))
+        self.preProgress = int(value('curProgress', 0))
         self.curProgress = self.preProgress
-        self.setTotalFile(j["totalFile"].toInt())
-        self.setFinishFile(j["finishFile"].toInt())
-        self.total = j["fileSize"].toInt()
+        self.setTotalFile(int(value('totalFile', 1)))
+        self.setFinishFile(int(value('finishFile', 0)))
+        self.total = int(value('fileSize', 0))
+        self.taskOptions = value('taskOptions', self.taskOptions)
 
-    
     # 判断文件是否在此目录
     # path:文件所在路径
     # filename:文件名(不带路径，带后缀名)

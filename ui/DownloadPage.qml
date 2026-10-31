@@ -7,6 +7,7 @@ Item {
     id:page
 
     property alias count: listView.count
+    property string optionsList: "[]"
     property string urlList: ""
     property string pathList: ""
     property string nameList: ""
@@ -14,29 +15,73 @@ Item {
     property string numList: ""
 
     signal toFinish(string url,string path,string name,string num,
-                    string finishFile, string total,string curProgress)
+                    string finishFile, string total,string curProgress, var taskOptions)
     signal toTrash(string url,string path,string name,string num,
-                   string finishFile, string total,string curProgress)
-    signal deleteFile(string path,string name)
+                   string finishFile, string total,string curProgress, var taskOptions)
+    signal deleteFile(string path,string name, var taskOptions)
     signal deleteFiles(var tasks)
     signal stopAllDownloads()
     signal viewOnExplorer(string path,string name)
 
-    function insertNew(url,path,name,totalFile){
+    function optionsAt(index){
+        var values = JSON.parse(optionsList || "[]")
+        return values[index] || {}
+    }
+
+    function appendOptions(options){
+        var values = JSON.parse(optionsList || "[]")
+        while(values.length < listModel.count)
+            values.push({})
+        values.push(options || {})
+        optionsList = JSON.stringify(values)
+    }
+
+    function removeOptions(index){
+        var values = JSON.parse(optionsList || "[]")
+        values.splice(index, 1)
+        optionsList = JSON.stringify(values)
+    }
+
+    function activeNames(path){
+        var names = []
+        var folder = path.replace(/\\/g, "/").replace(/\/$/, "").toLowerCase()
+        for(var i = 0; i < listModel.count; i++){
+            var task = listModel.get(i)
+            if(task.path.replace(/\\/g, "/").replace(/\/$/, "").toLowerCase() == folder)
+                names.push(task.name)
+        }
+        return names
+    }
+
+    function insertNew(url,path,name,totalFile,taskOptions){
+        taskOptions = taskOptions || {}
         if(path[path.length - 1] != "/")
             path += "/"
-        console.debug(url,path,name,totalFile)
-        listModel.append({
-                             url:url,
-                             path:path,
-                             name:name,
-                             files:totalFile
-                         })
+        if(taskOptions.kind)
+            name = setting.reserveVideoName(name,path,taskOptions,activeNames(path))
+        appendOptions(taskOptions)
         urlAppend(url)
         pathAppend(path)
         nameAppend(name)
         numAppend(totalFile)
         stateAppend("downloading")
+        listModel.append({url:url, path:path, name:name, files:String(totalFile),
+                          optionsJson:JSON.stringify(taskOptions)})
+    }
+
+    function syncVideoTask(index, attributes){
+        if(index < 0 || index >= listModel.count || !attributes)
+            return
+        if(!optionsAt(index).kind)
+            return
+        var names = nameList.split('|')
+        var counts = numList.split('|')
+        names[index + 1] = attributes.fileName
+        counts[index + 1] = String(attributes.totalFile)
+        nameList = names.join('|')
+        numList = counts.join('|')
+        listModel.setProperty(index, "name", attributes.fileName)
+        listModel.setProperty(index, "files", String(attributes.totalFile))
     }
 
     //删除任务有三种情况，一种是完成后去到已完成列表，一个是移除到已删除列表
@@ -47,11 +92,13 @@ Item {
         var p = listModel.get(index).path
         var n = listModel.get(index).name
         var f = listModel.get(index).files
+        var options = optionsAt(index)
         urlRemove(index)
         pathRemove(index)
         nameRemove(index)
         stateRemove(index)
         numRemove(index)
+        removeOptions(index)
         listModel.remove(index)
         if(isFinish){
             page.toFinish(u,
@@ -60,7 +107,7 @@ Item {
                           f,
                           finishFile,
                           total,
-                          curProgress)
+                          curProgress, options)
         }
         else if(toRecycleBin){
             page.toTrash(u,
@@ -69,11 +116,11 @@ Item {
                          f,
                          finishFile,
                          total,
-                         curProgress)
+                         curProgress, options)
         }
         else{
             page.deleteFile(p,
-                            n)
+                            n, options)
         }
     }
 
@@ -81,10 +128,11 @@ Item {
         var tasks = []
         for(var i = 0; i < listModel.count; i++){
             var task = listModel.get(i)
-            tasks.push({path: task.path, name: task.name})
+            tasks.push({path: task.path, name: task.name, options: optionsAt(i)})
         }
         page.stopAllDownloads()
         listModel.clear()
+        optionsList = "[]"
         urlList = ""
         pathList = ""
         nameList = ""
@@ -215,6 +263,7 @@ Item {
                                  url:ul[n],
                                  path:pl[n],
                                  name:nl[n],
+                                 optionsJson:JSON.stringify(optionsAt(n - 1)),
                                  files:numl[n]
                              })
         }
@@ -230,6 +279,7 @@ Item {
 
     Settings{
         id:settings
+        property alias downloadOptions: page.optionsList
         property alias downloadUrl: page.urlList
         property alias downloadPath: page.pathList
         property alias downloadName: page.nameList
@@ -239,6 +289,7 @@ Item {
 
     ListView{
         id:listView
+        cacheBuffer:Math.max(height, contentHeight)
         anchors.fill: parent
         clip:true
         model: ListModel{
@@ -251,20 +302,22 @@ Item {
             Rectangle{
                 id:delegateItem
                 width:listView.width - 10
-                height:80
+                height:videoTask ? 100 : 80
                 //color:index == listView.currentIndex ? "#98F5FF" : "white"
                 x: 5
 
                 property real total: attributes?attributes.total:0
-                property int  curProgress: attributes?attributes.curProgress:0
+                property real curProgress: attributes?attributes.curProgress:0
                 property int  curTime: attributes?attributes.curTime:0
                 property var  curSpeed: 0
                 property int  preTime: 0
-                property int  preProgress: attributes?attributes.preProgress:0
+                property real preProgress: attributes?attributes.preProgress:0
                 property string state: attributes?attributes.state:""
                 property int finishFile: attributes?attributes.finishFile:0
                 property int totalFile: attributes?attributes.totalFile:0
                 property var attributes: 0
+                property bool videoTask: !!JSON.parse(optionsJson || "{}").kind
+                property bool activeTask: state == "downloading" || state == "resolving" || state == "merging"
 
                 onStateChanged: {
                     if(delegateItem.state =="")
@@ -272,6 +325,7 @@ Item {
                     page.stateChanged(index,delegateItem.state)
                     if(delegateItem.state != "downloading"){
                         if(delegateItem.state == "finish"){
+                            page.syncVideoTask(index, attributes)
                             page.removeTask(index,true,false,
                                             delegateItem.finishFile,
                                             delegateItem.total,
@@ -284,16 +338,19 @@ Item {
                 }
 
                 Component.onCompleted: {
+                    downloaderManager.setTaskOptions(JSON.parse(optionsJson || "{}"))
                     downloaderManager.setFileTotal(files)
                     downloaderManager.setPath(path)
                     downloaderManager.setUrl(url)
                     downloaderManager.setFileName(name)
                     var state = page.getState(index) =="pause"
                     attributes = downloaderManager.downloadFile(state)
+                    page.syncVideoTask(index, attributes)
                 }
 
                 DownloaderManager{
                     id:downloaderManager
+                    ffmpeg:setting.ffmpeg
                 }
 
                 Connections{
@@ -301,6 +358,14 @@ Item {
                     function onStopAllDownloads(){
                         downloaderManager.deleteFile()
                     }
+                }
+
+                Component.onDestruction:downloaderManager.deleteFile()
+
+                Connections{
+                    target:delegateItem.attributes || null
+                    function onFileNameChanged(){page.syncVideoTask(index, delegateItem.attributes)}
+                    function onTotalFileChanged(){page.syncVideoTask(index, delegateItem.attributes)}
                 }
 
                 onCurTimeChanged: {
@@ -339,7 +404,7 @@ Item {
                     anchors.left: parent.left
                     anchors.leftMargin: 0
                     height:20
-                    value:curProgress / total * 100
+                    value:videoTask && totalFile > 0 ? finishFile / totalFile * 100 : (total > 0 ? curProgress / total * 100 : 0)
 
                     TextLoader{
                         id:percentage
@@ -358,6 +423,10 @@ Item {
                             return "下载出现错误"
                         case "NoDownload":
                             return "未开始下载  "
+                        case "resolving":
+                            return "正在读取清单"
+                        case "merging":
+                            return "正在合并视频"
                         case "downloading":
                             return "正在下载中  "
                         case "pause":
@@ -408,7 +477,9 @@ Item {
                 CPushButton{
                     id:stateButton
                     text:{
-                        if(delegateItem.state == "downloading")
+                        if(delegateItem.state == "merging")
+                            return "停止"
+                        if(delegateItem.activeTask)
                             return "暂停"
                         else
                             return "继续"
@@ -453,6 +524,15 @@ Item {
                     text:"已完成/总数量:"+finishFile + "/" + totalFile
                 }
 
+                TextLoader{
+                    visible:delegateItem.videoTask
+                    text:delegateItem.attributes ? delegateItem.attributes.message : ""
+                    width:parent.width
+                    elide:Text.ElideRight
+                    anchors.top:totalFileText.bottom
+                    anchors.topMargin:4
+                }
+
                 MouseArea{
                     anchors.fill: parent
                     z:stateButton.z - 1
@@ -473,7 +553,7 @@ Item {
                         id:startAction
                         text:qsTr("开始下载")
                         checkable: false
-                        enabled: delegateItem.state != "downloading"
+                        enabled: !delegateItem.activeTask
                         onTriggered: {
                             popup.close()
                             downloaderManager.pauseDown()
@@ -482,7 +562,7 @@ Item {
 
                     Action{
                         id:pauseAction
-                        text:qsTr("暂停下载")
+                        text:delegateItem.state == "merging" ? "停止合并" : "暂停下载"
                         checkable: false
                         enabled:!startAction.enabled
                         onTriggered: {
@@ -507,6 +587,7 @@ Item {
                         checkable: false
                         onTriggered: {
                             popup.close()
+                            downloaderManager.deleteFile()
                             page.removeTask(index,false,true,
                                             delegateItem.finishFile,
                                             delegateItem.total,

@@ -1,10 +1,16 @@
 
 import base64
+import json
+from pathlib import Path
+import re
+import uuid
 from PyQt5.Qt import QApplication, QObject, QDir, QUrl, QFile
 from PyQt5.Qt import pyqtSlot, pyqtSignal, pyqtProperty
 from PyQt5.QtNetwork import QNetworkProxy
 from Core.Enum import UrlType
 from Core.FFmpegManager import FFmpegManager
+from Core.VideoExtractor import VideoExtractor
+from Network.M3u8Downloader import cleanup_workdir
 
 class SettingsManager(QObject):
     '''
@@ -20,12 +26,111 @@ class SettingsManager(QObject):
         super(SettingsManager,self).__init__(parent)
 
         self._ffmpeg = FFmpegManager(self)
+        self._video = VideoExtractor(self._ffmpeg, self)
         self._clipboard = QApplication.clipboard()
         self._clipboard.dataChanged.connect(self.boardDataChanged)
 
     @pyqtProperty(QObject, constant=True)
     def ffmpeg(self):
         return self._ffmpeg
+
+    @pyqtProperty(QObject, constant=True)
+    def video(self):
+        return self._video
+
+    @staticmethod
+    def cleanVideoName(name):
+        name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name).strip().rstrip('.')
+        if not name:
+            name = 'video'
+        stem = name.split('.', 1)[0].upper()
+        if stem in {'CON', 'PRN', 'AUX', 'NUL'} or re.fullmatch(r'(COM|LPT)[1-9]', stem):
+            name = '_' + name
+        return name[:180]
+
+    @pyqtSlot(str, str, result=str)
+    def videoFileName(self, url, kind):
+        name = QUrl(url).fileName() or 'video'
+        if kind == 'm3u8':
+            name = (name.rsplit('.', 1)[0] if '.' in name else name) + '.mkv'
+        elif not Path(name).suffix:
+            name += '.mp4'
+        return self.cleanVideoName(name)
+
+    @pyqtSlot(str, str, str, result=str)
+    def titleFileName(self, title, date, current_name):
+        extension = Path(current_name).suffix or '.mkv'
+        title = title.strip()
+        if not title:
+            return current_name
+        if date and date not in title:
+            title = '[' + date + '] ' + title
+        return self.cleanVideoName(title) + extension
+
+    def _reserveVideoName(self, name, path, occupied, options=None):
+        options = options or {}
+        parent = Path(path)
+        stem, suffix = Path(name).stem, Path(name).suffix
+        candidate = name
+        index = 1
+        while True:
+            work = parent / (candidate + '.tmp')
+            resume = False
+            if options.get('id') and options.get('kind') in ('m3u8', 'mp4'):
+                try:
+                    config = work / (candidate + '.tmp.cfg') if options['kind'] == 'm3u8' else parent / (candidate + '.tmp.cfg')
+                    data = json.loads(config.read_text(encoding='utf-8'))
+                    saved = data.get('options', {}) if options['kind'] == 'm3u8' else data.get('taskOptions', {})
+                    resume = saved.get('id') == options['id'] and saved.get('kind') == options['kind']
+                except (OSError, ValueError):
+                    pass
+            temporary = not resume and (work.exists() or (parent / (candidate + '.tmp.cfg')).exists())
+            if candidate.lower() not in occupied and not (parent / candidate).exists() and not temporary:
+                return candidate
+            candidate = stem + '(' + str(index) + ')' + suffix
+            index += 1
+
+    @pyqtSlot('QVariantList', str, 'QVariantList', result='QVariantList')
+    def prepareVideoTasks(self, tasks, path, occupied):
+        try:
+            parent = Path(path).expanduser().resolve()
+            if not path.strip() or not parent.is_dir():
+                raise ValueError('请选择存在的下载目录')
+            used = {str(value).lower() for value in occupied}
+            result = []
+            for task in tasks:
+                options = dict(task.get('options') or {})
+                kind = options.get('kind')
+                if kind not in ('mp4', 'm3u8'):
+                    raise ValueError('暂不支持该资源类型')
+                if kind == 'm3u8' and not self._ffmpeg.ready:
+                    raise ValueError('请先在设置中检测 FFmpeg')
+                url = str(task.get('url', '')).strip()
+                if QUrl(url).scheme().lower() not in ('http', 'https'):
+                    raise ValueError('视频地址无效')
+                name = str(task.get('name', '')).strip()
+                if not name:
+                    raise ValueError('请填写视频文件名')
+                name = self.cleanVideoName(name)
+                if not Path(name).suffix:
+                    name += '.mkv' if kind == 'm3u8' else '.mp4'
+                if kind == 'm3u8' and Path(name).suffix.lower() not in ('.mkv', '.mp4'):
+                    raise ValueError('m3u8 输出文件名应以 .mkv 或 .mp4 结尾')
+                name = self._reserveVideoName(name, str(parent), used)
+                used.add(name.lower())
+                options.update(id=str(uuid.uuid4()), url=url)
+                options.setdefault('headerUrl', url)
+                result.append({'url': url, 'name': name, 'path': parent.as_posix() + '/',
+                               'files': 1, 'options': options})
+            self._video.setError('')
+            return result
+        except (OSError, ValueError) as error:
+            self._video.setError(str(error))
+            return []
+
+    @pyqtSlot(str, str, 'QVariantMap', 'QVariantList', result=str)
+    def reserveVideoName(self, name, path, options, occupied):
+        return self._reserveVideoName(name, path, {str(value).lower() for value in occupied}, options)
 
     # 判断url是哪种下载链接
     # 为了qml能够使用返回值，改为返回int
@@ -40,6 +145,8 @@ class SettingsManager(QObject):
         # 转小写
         text[0] = text[0].lower()
         if text[0] == "http" or text[0] == "https":
+            if QUrl(url).path().lower().endswith('.m3u8'):
+                return UrlType.M3u8.value
             return  UrlType.Https.value
         else:
             # 其他类型url
@@ -135,7 +242,11 @@ class SettingsManager(QObject):
 
     # 永久删除文件，删除临时文件和配置文件，不删除已下载完成的文件
     @pyqtSlot(str,str)
-    def deleteFile(self,path,name):
+    @pyqtSlot(str,str,'QVariantMap')
+    def deleteFile(self,path,name,options=None):
+        if options and options.get('kind') == 'm3u8':
+            cleanup_workdir(path, name, options.get('id', ''))
+            return
         file = QFile(path + name + ".tmp")
         print(file.fileName())
         if file.exists():
@@ -148,7 +259,7 @@ class SettingsManager(QObject):
     @pyqtSlot("QVariantList")
     def deleteFiles(self,tasks):
         for task in tasks:
-            self.deleteFile(task["path"],task["name"])
+            self.deleteFile(task["path"],task["name"],task.get("options", {}))
 
     def _getThunderUrl(self,url):
         src = url.split('/')[-1]

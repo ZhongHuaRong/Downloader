@@ -9,6 +9,20 @@ Item {
     property var settingItem: ""
     property int  type: 0
 
+    signal newVideoTasks(var tasks,string path)
+    signal inspectM3u8(string url)
+    signal cancelVideo()
+
+    function configureSource(){
+        if(!loader.item)
+            return
+        var url = setting.getBaseUrl(sourceEdit.text).trim()
+        if(type == 1 || type == 4)
+            loader.item.setMsg(url, type == 4 ? setting.videoFileName(url,"m3u8") : setting.checkFileName(url,targetEdit.text),targetEdit.text)
+        else if(type == 2)
+            loader.item.setFileName(url,targetEdit.text)
+    }
+
     signal newOne(string url,string path,string fileName,string pages)
 
     function getNewUrl(url){
@@ -47,27 +61,14 @@ Item {
             placeholderText:"输入URL"
             readOnly: settingItem.downloadFlag
             onTextChanged: {
-                var url = setting.getBaseUrl(sourceEdit.text)
-                // 这样子可以让type的判断减少一次递归
+                urlPage.cancelVideo()
+                var url = setting.getBaseUrl(sourceEdit.text).trim()
                 type = setting.getUrlType(url)
-                switch(type){
-                case 0:
-                    //未知类型或者未填写
-                    loader.source = ""
-                    break;
-                case 1:
-                    //http类型
-                    loader.source = "./HttpSetting.qml"
-                    loader.item.setMsg(url,
-                                       setting.checkFileName(url,targetEdit.text),
-                                       targetEdit.text)
-                    break;
-                case 2:
-                    //BT类型
-                    loader.source = "./BTSetting.qml"
-                    loader.item.setFileName(sourceEdit.text,targetEdit.text)
-                    break;
-                }
+                var nextSource = type == 1 ? "./HttpSetting.qml" : type == 4 ? "./M3u8Setting.qml" : type == 2 ? "./BTSetting.qml" : ""
+                if(loader.source.toString() == nextSource || loader.source.toString().endsWith(nextSource.substring(1)) && nextSource.length > 0)
+                    urlPage.configureSource()
+                else
+                    loader.source = nextSource
             }
         }
 
@@ -93,6 +94,7 @@ Item {
 
         CTextEdit{
             id:targetEdit
+            objectName:"targetPath"
             width:parent.width - targetPath.width -  findPath.width - 35
             placeholderText:"输入路劲"
             text:fileDialog.shortcuts.desktop.split("file:///")[1]
@@ -110,6 +112,7 @@ Item {
 
     Loader{
         id:loader
+        objectName:"sourceConfiguration"
         anchors.right: parent.right
         anchors.rightMargin: 0
         anchors.left: parent.left
@@ -118,6 +121,16 @@ Item {
         anchors.topMargin: 0
         anchors.bottom:parent.bottom
         anchors.bottomMargin: 0
+
+        onLoaded:urlPage.configureSource()
+
+        function videoDownload(tasks){
+            urlPage.newVideoTasks(tasks,targetEdit.text)
+        }
+
+        function inspectVideo(url){
+            urlPage.inspectM3u8(url)
+        }
 
         // 放在这里实现，用信号绑定的话会出现重复的情况，
         // 除非解除绑定，不过解除绑定需要花费很多功夫去检测
