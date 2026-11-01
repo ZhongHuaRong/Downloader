@@ -69,9 +69,10 @@ class SettingsManager(QObject):
         title = title.strip()
         if not title:
             return current_name
-        dates = re.findall(r'\d{4}\s*[-/.年]\s*\d{1,2}\s*[-/.月]\s*\d{1,2}',title)
-        if date and date not in [published_date(value) for value in dates]:
-            title = '[' + date + '] ' + title
+        dates = re.findall(r'\d{4}\s*[-/.年]\s*\d{1,2}\s*[-/.月]\s*\d{1,2}|(?<!\d)\d{8}(?!\d)',title)
+        normalized_date = published_date(date)
+        if normalized_date and normalized_date not in [published_date(value) for value in dates]:
+            title = '[' + normalized_date.replace('-', '') + ']' + title
         if title.lower().endswith(extension.lower()):
             title = title[:-len(extension)]
         return self.cleanVideoName(title) + extension
