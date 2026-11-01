@@ -8,6 +8,7 @@ Item {
     property int selectedCount:0
     property int resourceCount:resourceModel.count
     signal previewClicked(string resourceId,bool force)
+    signal variantChanged(string resourceId,string variantUrl)
 
     function refresh(){
         var resources = setting.video.resources
@@ -23,7 +24,8 @@ Item {
                 if(resourceModel.get(j).resourceId == resource.id){row = j; break}
             }
             var values = {resourceId:resource.id,kind:resource.kind,url:resource.url,
-                          variantsJson:JSON.stringify(resource.variants),duration:resource.duration || 0,
+                          variantsJson:JSON.stringify(resource.variants),
+                          choicesJson:JSON.stringify(resource.variants.map(function(item){return {url:item.url,label:item.label}})),duration:resource.duration || 0,
                           preview:resource.preview || "",previewBusy:!!resource.previewBusy,previewError:resource.previewError || ""}
             if(row < 0){
                 values.selectedFlag = false
@@ -106,10 +108,31 @@ Item {
                 id:resourceItem
                 objectName:"videoResource"
                 property int rowIndex:index
+                property var selectedInfo:{
+                    var values = JSON.parse(variantsJson || "[]")
+                    for(var n = 0; n < values.length; n++)
+                        if(values[n].url == selectedVariant) return values[n]
+                    return values[0] || {}
+                }
+                function toggleSelected(){
+                    var selected = !selectedFlag
+                    resourceModel.setProperty(rowIndex,"selectedFlag",selected)
+                    results.updateSelectedCount()
+                    if(selected) results.variantChanged(resourceId,selectedVariant)
+                }
                 width:content.width
                 height:selectedFlag ? 134 : 94
-                color:"#fafafa"
-                border.color:"#dfdfe7"
+                color:selectedFlag ? "#eef6ff" : cardMouse.containsMouse ? "#f5f8fc" : "#fafafa"
+                border.color:selectedFlag ? "#7fb5e6" : "#dfdfe7"
+
+                MouseArea{
+                    id:cardMouse
+                    objectName:"videoResourceClick"
+                    anchors.fill:parent
+                    hoverEnabled:true
+                    cursorShape:Qt.PointingHandCursor
+                    onClicked:resourceItem.toggleSelected()
+                }
 
                 Row{
                     id:resourceRow
@@ -124,6 +147,7 @@ Item {
                         onClicked:{
                             resourceModel.setProperty(resourceItem.rowIndex,"selectedFlag",checked)
                             results.updateSelectedCount()
+                            if(checked) results.variantChanged(resourceId,selectedVariant)
                         }
                     }
                     Rectangle{
@@ -159,21 +183,32 @@ Item {
                             elide:Text.ElideRight
                             text:"资源 " + (resourceItem.rowIndex + 1) + " · " + (kind || "").toUpperCase()
                         }
-                        TextLoader{text:results.durationLabel(duration)}
+                        TextLoader{
+                            objectName:"videoSegments"
+                            width:parent.width
+                            wrapMode:Text.NoWrap
+                            elide:Text.ElideRight
+                            text:results.durationLabel(resourceItem.selectedInfo.duration || duration) +
+                                 (kind == "m3u8" ? " · " + (resourceItem.selectedInfo.segmentCount >= 0 ? resourceItem.selectedInfo.segmentCount + " 个视频分片" : resourceItem.selectedInfo.counting ? "正在统计分片…" : "分片数未获取") : "")
+                        }
                         ComboBox{
                             id:quality
                             objectName:"videoQuality"
                             width:Math.min(160,parent.width)
                             height:26
                             visible:JSON.parse(variantsJson).length > 1
-                            model:JSON.parse(variantsJson).map(function(item){return item.label})
+                            model:JSON.parse(choicesJson).map(function(item){return item.label})
                             currentIndex:{
-                                var values = JSON.parse(variantsJson)
+                                var values = JSON.parse(choicesJson)
                                 for(var n = 0; n < values.length; n++)
                                     if(values[n].url == selectedVariant) return n
                                 return 0
                             }
-                            onActivated:resourceModel.setProperty(resourceItem.rowIndex,"selectedVariant",JSON.parse(variantsJson)[currentIndex].url)
+                            onActivated:{
+                                var selected = JSON.parse(choicesJson)[currentIndex].url
+                                resourceModel.setProperty(resourceItem.rowIndex,"selectedVariant",selected)
+                                results.variantChanged(resourceId,selected)
+                            }
                         }
                     }
                 }

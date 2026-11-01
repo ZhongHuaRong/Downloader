@@ -1,4 +1,5 @@
 import base64
+import logging
 from pathlib import Path
 import shutil
 import tempfile
@@ -90,6 +91,7 @@ class VideoPreview(QObject):
             status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or 0
             destination = reply.attribute(QNetworkRequest.RedirectionTargetAttribute)
             error = reply.error()
+            reason = reply.errorString()
             content_range = bytes(reply.rawHeader(b'Content-Range'))
             reply.deleteLater()
             if destination and 300 <= status < 400:
@@ -99,7 +101,7 @@ class VideoPreview(QObject):
                 self._get(urljoin(url,destination.toString()),callback,limit,partial,byte_range,redirects+1)
                 return
             if not 200 <= status < 300 or (error != QNetworkReply.NoError and not (partial and capped[0])):
-                self._finish('','预览下载失败，点击图片可重试')
+                self._finish('','预览下载失败，HTTP ' + str(status) + '：' + reason)
                 return
             if capped[0] and not partial:
                 self._finish('','预览样本过大，点击图片可重试')
@@ -183,6 +185,7 @@ class VideoPreview(QObject):
             output.extend(bytes(process.readAllStandardOutput()))
         def finished(code,status):
             read()
+            details = bytes(process.readAllStandardError()).decode('utf-8',errors='replace')
             if process is not self._process:
                 process.deleteLater()
                 return
@@ -191,6 +194,8 @@ class VideoPreview(QObject):
             if self._active and code == 0 and status == QProcess.NormalExit and output.startswith(b'\xff\xd8'):
                 self._finish('data:image/jpeg;base64,'+base64.b64encode(output).decode('ascii'),'')
             else:
+                if self._active:
+                    logging.warning('[视频预览] FFmpeg 抽帧失败，退出码 %s：%s',code,details[-1500:].strip())
                 self._finish('','暂无预览，点击图片可重试')
         def failed(error):
             if process is self._process and error == QProcess.FailedToStart:

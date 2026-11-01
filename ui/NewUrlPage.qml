@@ -11,6 +11,7 @@ Item {
 
     signal newVideoTasks(var tasks,string path)
     signal inspectM3u8(string url)
+    signal inspectVideoVariant(string resourceId,string variantUrl)
     signal cancelVideo()
     signal recognizeVideo(string url,bool manual)
     signal finishVideoRecognition()
@@ -128,6 +129,7 @@ Item {
 
         onLoaded:urlPage.configureSource()
 
+        function inspectVideoVariant(resourceId,variantUrl){urlPage.inspectVideoVariant(resourceId,variantUrl)}
         function recognizeVideo(url,manual){urlPage.recognizeVideo(url,manual)}
         function finishRecognition(){urlPage.finishVideoRecognition()}
         function stopRecognition(){urlPage.stopVideoRecognition()}

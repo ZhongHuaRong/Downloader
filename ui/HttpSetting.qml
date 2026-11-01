@@ -92,28 +92,38 @@ Item {
                 text:(checked ? "▾ " : "▸ ") + "高级选项"
             }
 
-            Row{
+            Rectangle{
+                objectName:"videoAdvancedOptions"
                 visible:advanced.checked
-                spacing:8
-                CPushButton{
-                    objectName:"recognizeVideo"
-                    text:setting.video.busy && setting.video.manual ? "完成识别" : "识别视频"
-                    enabled:!setting.video.busy || setting.video.manual
-                    onClicked:{
-                        if(setting.video.busy)
-                            httpItem.parent.finishRecognition()
-                        else
-                            httpItem.parent.recognizeVideo(httpItem.url,false)
+                width:parent.width - 10
+                height:54
+                color:"#f7f9fc"
+                border.color:"#dfdfe7"
+
+                Row{
+                    x:12
+                    y:12
+                    spacing:8
+                    CPushButton{
+                        objectName:"recognizeVideo"
+                        text:setting.video.busy && setting.video.manual ? "完成识别" : "识别视频"
+                        enabled:!setting.video.busy || setting.video.manual
+                        onClicked:{
+                            if(setting.video.busy)
+                                httpItem.parent.finishRecognition()
+                            else
+                                httpItem.parent.recognizeVideo(httpItem.url,false)
+                        }
                     }
-                }
-                CPushButton{
-                    width:120
-                    text:setting.video.busy ? "取消识别" : "浏览器中识别"
-                    onClicked:{
-                        if(setting.video.busy)
-                            httpItem.parent.stopRecognition()
-                        else
-                            httpItem.parent.recognizeVideo(httpItem.url,true)
+                    CPushButton{
+                        width:120
+                        text:setting.video.busy ? "取消识别" : "浏览器中识别"
+                        onClicked:{
+                            if(setting.video.busy)
+                                httpItem.parent.stopRecognition()
+                            else
+                                httpItem.parent.recognizeVideo(httpItem.url,true)
+                        }
                     }
                 }
             }
@@ -130,6 +140,7 @@ Item {
                 id:videoResults
                 width:parent.width - 10
                 visible:httpItem.videoMode
+                onVariantChanged:httpItem.parent.inspectVideoVariant(resourceId,variantUrl)
                 onPreviewClicked:httpItem.parent.previewVideo(resourceId,force)
             }
 

@@ -2,14 +2,16 @@ import asyncio
 import base64
 from datetime import date
 import html
+import logging
 import math
 import re
 import threading
 import time
+import traceback
 from urllib.parse import urldefrag, urljoin, urlsplit
 import uuid
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, QUrl, pyqtSignal
 
 from Network.M3u8Playlist import attributes, master_playlist, request_headers
 
@@ -18,8 +20,21 @@ MAX_TEXT = 2 * 1024 * 1024
 HEADERS = {'referer', 'origin', 'user-agent', 'cookie', 'authorization'}
 
 
+def log_url(value):
+    return QUrl(value).adjusted(QUrl.RemoveUserInfo | QUrl.RemoveQuery | QUrl.RemoveFragment).toString()
+
+
+def error_summary(error):
+    # Playwright 的 Call log 可能附带请求头，只记录首行原因和脱敏后的地址。
+    lines = str(error).splitlines()
+    value = lines[0] if lines else type(error).__name__
+    return re.sub(r'''https?://[^\s"'<>]+''',lambda match:log_url(match[0]),value)[:300]
+
+
 def published_date(value):
     match = re.search(r'(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})', value or '')
+    if not match:
+        match = re.search(r'(?<!\d)(\d{4})(\d{2})(\d{2})(?!\d)', value or '')
     if not match:
         return ''
     try:
@@ -63,7 +78,7 @@ class VideoResources:
         if kind not in ('m3u8', 'mp4'):
             return None
         item = self.items.setdefault(url, {'url':url, 'kind':kind, 'headers':{}, 'status':None,
-                                          'frames':set(), 'duration':0, 'variants':[], 'parsed':False,
+                                          'frames':set(), 'duration':0, 'segmentCount':-1, 'variants':[], 'parsed':False,
                                           'preview':'', 'score':0, 'references':set()})
         item['kind'] = kind
         if status is not None:
@@ -100,6 +115,7 @@ class VideoResources:
             self.renditions.add(audio['url'])
             self.link(url, audio['url'])
         duration = 0
+        count = 0
         for line in text.splitlines():
             line = line.strip()
             if line.startswith('#EXTINF:'):
@@ -115,10 +131,32 @@ class VideoResources:
                     self.referenced.add(urljoin(url, uri))
                     item['references'].add(urljoin(url, uri))
             elif line and not line.startswith('#') and not master['variants']:
+                count += 1
                 self.referenced.add(urljoin(url, line))
                 item['references'].add(urljoin(url, line))
         if '#EXT-X-ENDLIST' in text:
             item['duration'] = duration
+            item['segmentCount'] = count
+            logging.info('[m3u8] 已读取 %d 个视频分片：%s',count,log_url(url))
+
+    def statistics(self, url, visited=None):
+        visited = set(visited or ())
+        if url in visited:
+            return {'duration':0, 'segmentCount':-1}
+        visited.add(url)
+        item = self.items.get(url, {})
+        if item.get('segmentCount', -1) >= 0:
+            return {'duration':item['duration'], 'segmentCount':item['segmentCount']}
+        variants = item.get('variants', [])
+        if variants:
+            selected = max(variants,key=lambda value:(value['height'],value['bandwidth']))
+            return self.statistics(selected['url'],visited)
+        for child in self.children.get(url, ()):
+            if child not in self.renditions:
+                value = self.statistics(child,visited)
+                if value['segmentCount'] >= 0:
+                    return value
+        return {'duration':0, 'segmentCount':-1}
 
     def related(self, url):
         group, pending = set(), [url]
@@ -165,10 +203,13 @@ class VideoResources:
             choices = sorted(root['variants'], key=lambda value:(value['height'],value['bandwidth']), reverse=True)
             if not choices:
                 choices = [{'url':root['url'], 'label':'默认清晰度', 'width':0, 'height':0}]
+            choices = [dict(choice, **self.statistics(choice['url'])) for choice in choices]
             preview = max(members, key=lambda value:value['score'])
             headers = dict(root['headers'])
-            headers.setdefault('user-agent', self.agent)
-            headers.setdefault('referer', self.source)
+            if self.agent:
+                headers.setdefault('user-agent', self.agent)
+            if self.source:
+                headers.setdefault('referer', self.source)
             origin_headers = {}
             references = set().union(*(member['references'] for member in members))
             for address in group | references:
@@ -209,7 +250,9 @@ class VideoBrowser(QThread):
         except ImportError:
             self.failed.emit('网页识别需要 Playwright，请执行 python.exe -m pip install playwright')
         except Exception as error:
-            self.failed.emit('网页识别失败：' + str(error)[:500])
+            logging.error('[视频识别] 浏览器工作线程出错：%s: %s\n%s',
+                          type(error).__name__,error_summary(error),''.join(traceback.format_tb(error.__traceback__)))
+            self.failed.emit('网页识别失败：' + error_summary(error))
 
     async def _run(self):
         from playwright.async_api import async_playwright
@@ -229,7 +272,9 @@ class VideoBrowser(QThread):
         from playwright.async_api import Error
         browser = None
         for channel in ('msedge', 'chrome', None):
+            label = {'msedge':'Edge', 'chrome':'Chrome', None:'Chromium'}[channel]
             try:
+                logging.info('[视频识别] 正在启动 %s（%s）',label,'可见窗口' if self.visible else '后台')
                 options = {'headless':not self.visible, 'timeout':12000,
                            'args':['--autoplay-policy=no-user-gesture-required']}
                 if channel:
@@ -240,7 +285,8 @@ class VideoBrowser(QThread):
                     options['args'].append('--no-proxy-server')
                 browser = await playwright.chromium.launch(**options)
                 break
-            except Error:
+            except Error as error:
+                logging.warning('[视频识别] %s 启动失败：%s',label,error_summary(error))
                 continue
         if browser is None:
             raise RuntimeError('未找到 Edge / Chrome，请安装浏览器或执行 python.exe -m playwright install chromium')
@@ -299,12 +345,14 @@ class VideoBrowser(QThread):
                     if len(body) <= MAX_TEXT:
                         collector.scan(body.decode('utf-8', errors='replace'), response.url)
                 await response.dispose()
-            except (Error, ValueError):
-                pass
+            except (Error, ValueError) as error:
+                if not self.isInterruptionRequested():
+                    logging.warning('[视频识别] 源码读取失败，继续通过浏览器检测：%s',error_summary(error))
             try:
                 await page.goto(self.url, wait_until='domcontentloaded', timeout=20000)
-            except Error:
-                pass
+            except Error as error:
+                if not self.isInterruptionRequested():
+                    logging.warning('[视频识别] 页面加载未完成，继续检测已加载内容：%s',error_summary(error))
             if self.visible:
                 self.status.emit('浏览器已打开；播放视频后点击“完成识别”，也可以取消')
             else:
@@ -357,6 +405,7 @@ class VideoBrowser(QThread):
                 options = {'headers':item['headers'], 'headerUrl':url, 'sourceUrl':self.url}
                 response = await context.request.get(url, headers=request_headers(options,url),timeout=max(100,int(min(5,deadline-time.monotonic())*1000)))
                 collector.add(url,kind='m3u8',status=response.status)
+                logging.info('[视频识别] 候选清单 HTTP %s：%s',response.status,log_url(url))
                 if response.ok and int(response.headers.get('content-length','0') or '0') <= MAX_TEXT:
                     body = await response.body()
                     if len(body) <= MAX_TEXT:
@@ -366,8 +415,9 @@ class VideoBrowser(QThread):
                             collector.link(url,final)
                         collector.playlist(final,body.decode('utf-8-sig'))
                 await response.dispose()
-            except (error_type,ValueError):
-                pass
+            except (error_type,ValueError) as error:
+                if not self.isInterruptionRequested() and not self._finish.is_set():
+                    logging.warning('[视频识别] 候选清单读取失败：%s；%s',log_url(url),error_summary(error))
 
     async def _cookies(self, context, collector, error_type):
         addresses = list(collector.items) + list(collector.referenced)

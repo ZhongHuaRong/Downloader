@@ -90,6 +90,7 @@ Item {
             active: true
             NewUrlPage{
                 settingItem: settingTab.item
+                onInspectVideoVariant:setting.video.inspectVariant(resourceId,variantUrl)
                 onInspectM3u8:setting.video.inspectM3u8(url)
                 onCancelVideo:setting.video.reset()
                 onRecognizeVideo:setting.video.recognize(url,manual)

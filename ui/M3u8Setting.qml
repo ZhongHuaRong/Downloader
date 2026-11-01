@@ -6,7 +6,13 @@ Item {
     property string url: ""
     property string selectedVariant:""
     property var resource: setting.video.resources.length ? setting.video.resources[0] : null
-    property string variantsJson:JSON.stringify(resource ? resource.variants : [])
+    property string variantsJson:JSON.stringify(resource ? resource.variants.map(function(item){return {url:item.url,label:item.label}}) : [])
+    property var selectedInfo:{
+        var values = resource ? resource.variants : []
+        for(var n = 0; n < values.length; n++)
+            if(values[n].url == selectedVariant) return values[n]
+        return values[0] || {}
+    }
     property alias fileName: nameEdit.text
 
     function setMsg(baseUrl, name, path){
@@ -60,9 +66,17 @@ Item {
                             if(values[n].url == m3u8Item.selectedVariant) return n
                         return 0
                     }
-                    onActivated:m3u8Item.selectedVariant = JSON.parse(m3u8Item.variantsJson)[currentIndex].url
+                    onActivated:{
+                        m3u8Item.selectedVariant = JSON.parse(m3u8Item.variantsJson)[currentIndex].url
+                        m3u8Item.parent.inspectVideoVariant(m3u8Item.resource.id,m3u8Item.selectedVariant)
+                    }
                     model:JSON.parse(m3u8Item.variantsJson).map(function(item){return item.label})
                 }
+            }
+
+            TextLoader{
+                objectName:"m3u8Segments"
+                text:"视频分片：" + (m3u8Item.selectedInfo.segmentCount >= 0 ? m3u8Item.selectedInfo.segmentCount : m3u8Item.selectedInfo.counting ? "正在统计…" : "未获取")
             }
 
             TextLoader{
