@@ -19,6 +19,10 @@ if __name__ == "__main__":
         filename='Downloader.log',
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s')
+    if sys.stdout is not None:
+        console = logging.StreamHandler(sys.stdout)
+        console.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(console)
     print(sys.argv)
     qmlRegisterType(
         DownloaderManager,
