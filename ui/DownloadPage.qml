@@ -302,7 +302,7 @@ Item {
             Rectangle{
                 id:delegateItem
                 width:listView.width - 10
-                height:videoTask ? 100 : 80
+                height:80
                 //color:index == listView.currentIndex ? "#98F5FF" : "white"
                 x: 5
 
@@ -522,15 +522,6 @@ Item {
                     anchors.right: parent.right
                     anchors.rightMargin: 0
                     text:"已完成/总数量:"+finishFile + "/" + totalFile
-                }
-
-                TextLoader{
-                    visible:delegateItem.videoTask
-                    text:delegateItem.attributes ? delegateItem.attributes.message : ""
-                    width:parent.width
-                    elide:Text.ElideRight
-                    anchors.top:totalFileText.bottom
-                    anchors.topMargin:4
                 }
 
                 MouseArea{
