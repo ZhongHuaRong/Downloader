@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 import shutil
 import threading
@@ -25,7 +26,9 @@ def cleanup_workdir(parent, name, task_id=''):
         if task_id and data.get('options', {}).get('id') != task_id:
             return
         shutil.rmtree(work)
-    except (OSError, ValueError):
+        logging.info('[m3u8] 已清理缓存目录：%s',work)
+    except (OSError, ValueError) as error:
+        logging.warning('[m3u8] 缓存目录未能清理：%s；%s',work,error)
         return
 
 
@@ -352,6 +355,7 @@ class M3u8Downloader(QObject):
                     output.rename(parent / name)
                     self._data['stage'] = 'complete'
                     self._save()
+                    logging.info('[m3u8] 合并完成，成品已保存：%s',parent / name)
                     original_name = self._data['name']
                     options = dict(self.attributes.taskOptions)
                     threading.Thread(target=cleanup_workdir,
@@ -409,7 +413,8 @@ class M3u8Downloader(QObject):
             process.kill()
             process.waitForFinished(1000)
             process.deleteLater()
-        if self._data is not None:
+        # 完成后的目录正在后台清理，销毁任务时不能再把配置写回去。
+        if self._data is not None and self._data.get('stage') != 'complete':
             try:
                 self._save()
             except OSError:
