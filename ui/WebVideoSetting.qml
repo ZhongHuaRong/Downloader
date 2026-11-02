@@ -60,11 +60,15 @@ Item {
         return tasks
     }
 
-    function requestVisiblePreviews(top,height){
+    function requestVisiblePreviews(viewport){
+        if(!results.visible) return
         for(var i = 0; i < repeater.count; i++){
             var item = repeater.itemAt(i)
-            if(item && results.y + item.y < top + height && results.y + item.y + item.height > top)
-                results.previewClicked(resourceModel.get(i).resourceId,false)
+            if(item){
+                var position = item.mapToItem(viewport,0,0)
+                if(position.y < viewport.height && position.y + item.height > 0)
+                    results.previewClicked(resourceModel.get(i).resourceId,false)
+            }
         }
     }
 

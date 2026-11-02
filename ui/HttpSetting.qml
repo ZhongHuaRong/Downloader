@@ -32,6 +32,7 @@ Item {
 
     MyScrollView{
         id:scroll
+        objectName:"httpScroll"
         anchors.fill: parent
 
         Column{
@@ -89,6 +90,7 @@ Item {
                 objectName:"videoAdvanced"
                 width:120
                 checkable:true
+                onCheckedChanged:if(previewTimer) previewTimer.restart()
                 text:(checked ? "▾ " : "▸ ") + "高级选项"
             }
 
@@ -96,52 +98,59 @@ Item {
                 objectName:"videoAdvancedOptions"
                 visible:advanced.checked
                 width:parent.width - 10
-                height:54
+                height:advancedContent.implicitHeight + 24
                 color:"#f7f9fc"
                 border.color:"#dfdfe7"
 
-                Row{
+                Column{
+                    id:advancedContent
                     x:12
                     y:12
-                    spacing:8
-                    CPushButton{
-                        objectName:"recognizeVideo"
-                        text:setting.video.busy && setting.video.manual ? "完成识别" : "识别视频"
-                        enabled:!setting.video.busy || setting.video.manual
-                        onClicked:{
-                            if(setting.video.busy)
-                                httpItem.parent.finishRecognition()
-                            else
-                                httpItem.parent.recognizeVideo(httpItem.url,false)
+                    width:parent.width - 24
+                    spacing:10
+
+                    Row{
+                        spacing:8
+                        CPushButton{
+                            objectName:"recognizeVideo"
+                            text:setting.video.busy && setting.video.manual ? "完成识别" : "识别视频"
+                            enabled:!setting.video.busy || setting.video.manual
+                            onClicked:{
+                                if(setting.video.busy)
+                                    httpItem.parent.finishRecognition()
+                                else
+                                    httpItem.parent.recognizeVideo(httpItem.url,false)
+                            }
+                        }
+                        CPushButton{
+                            width:120
+                            text:setting.video.busy ? "取消识别" : "浏览器中识别"
+                            onClicked:{
+                                if(setting.video.busy)
+                                    httpItem.parent.stopRecognition()
+                                else
+                                    httpItem.parent.recognizeVideo(httpItem.url,true)
+                            }
                         }
                     }
-                    CPushButton{
-                        width:120
-                        text:setting.video.busy ? "取消识别" : "浏览器中识别"
-                        onClicked:{
-                            if(setting.video.busy)
-                                httpItem.parent.stopRecognition()
-                            else
-                                httpItem.parent.recognizeVideo(httpItem.url,true)
-                        }
+
+                    TextLoader{
+                        width:parent.width
+                        visible:text.length > 0
+                        wrapMode:Text.Wrap
+                        text:setting.video.error || setting.video.status
+                        color:setting.video.error ? "#cc3333" : "#445266"
+                    }
+
+                    WebVideoSetting{
+                        id:videoResults
+                        width:parent.width
+                        visible:httpItem.videoMode
+                        onHeightChanged:if(previewTimer) previewTimer.restart()
+                        onVariantChanged:httpItem.parent.inspectVideoVariant(resourceId,variantUrl)
+                        onPreviewClicked:httpItem.parent.previewVideo(resourceId,force)
                     }
                 }
-            }
-
-            TextLoader{
-                width:parent.width - 10
-                visible:text.length > 0
-                wrapMode:Text.Wrap
-                text:setting.video.error || setting.video.status
-                color:setting.video.error ? "#cc3333" : "#445266"
-            }
-
-            WebVideoSetting{
-                id:videoResults
-                width:parent.width - 10
-                visible:httpItem.videoMode
-                onVariantChanged:httpItem.parent.inspectVideoVariant(resourceId,variantUrl)
-                onPreviewClicked:httpItem.parent.previewVideo(resourceId,force)
             }
 
             CPushButton{
@@ -160,8 +169,8 @@ Item {
         id:previewTimer
         interval:150
         onTriggered:{
-            if(scroll.flickableItem)
-                videoResults.requestVisiblePreviews(scroll.flickableItem.contentY,scroll.height)
+            if(advanced.checked && videoResults.visible && scroll.flickableItem)
+                videoResults.requestVisiblePreviews(scroll.flickableItem)
         }
     }
     Connections{
