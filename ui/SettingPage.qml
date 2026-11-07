@@ -43,9 +43,13 @@ Item {
     }
 
     MyScrollView{
+        id:scroll
+        objectName:"settingsScroll"
         anchors.fill: parent
 
         Column{
+            id:settingsContent
+            width:scroll.viewport.width
             padding:10
             spacing: 5
 
@@ -53,7 +57,7 @@ Item {
                 id:exitApp
                 text: "关闭主面板后直接退出程序"
                 checked: settings.exitDirectly
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
                 onCheckedChanged: {
                     settings.exitDirectly = checked
                 }
@@ -63,21 +67,21 @@ Item {
                 id:pasteUrl
                 text: "自动检测剪贴板的链接，然后更新下载链接"
                 checked: true
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
             }
 
             CCheckBox{
                 id:download
                 text: "下载链接更新后自动下载(启动该项后请不要手动输入URL)"
                 checked: false
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
             }
 
             CCheckBox{
                 id:decompression
                 text: "下载文件如果是压缩包则自动解压到当前文件夹"
                 checked: true
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
             }
 
             CCheckBox{
@@ -85,7 +89,7 @@ Item {
                 text: "解压失败后使用密码重新解压"
                 checked: true
                 enabled: decompression.checked
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
             }
 
             CCheckBox{
@@ -93,12 +97,12 @@ Item {
                 text: "启动密码库来遍历解压(分隔符是;),不启动则是默认使用域名解压"
                 checked: true
                 enabled: usePW.checked && decompression.checked
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
             }
 
             CTextEdit{
                 id:pwEdit
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
                 enabled: usePWList.enabled && usePWList.checked
                 text:"123;234;345"
             }
@@ -107,7 +111,7 @@ Item {
                 id:useproxy
                 text: "启用代理服务器"
                 checked: false
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
                 onCheckedChanged: {
                     settingItem.proxyButtonClick()
                 }
@@ -115,7 +119,7 @@ Item {
 
             Row{
                 spacing: 3
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
                 TextLoader{
                     text:"主机名"
                     height:hostname.height
@@ -123,7 +127,7 @@ Item {
 
                 CTextEdit{
                     id:hostname
-                    width:settingItem.width/3
+                    width:settingsContent.width/3
                     enabled: useproxy.checked
                     text:"127.0.0.1"
                 }
@@ -135,7 +139,7 @@ Item {
 
                 CTextEdit{
                     id:port
-                    width:settingItem.width/3
+                    width:settingsContent.width/3
                     enabled: useproxy.checked
                     text:"65530"
                 }
@@ -143,7 +147,7 @@ Item {
 
             Row{
                 spacing: 3
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
                 TextLoader{
                     text:"用户名"
                     height:hostname.height
@@ -151,7 +155,7 @@ Item {
 
                 CTextEdit{
                     id:username
-                    width:settingItem.width/3
+                    width:settingsContent.width/3
                     enabled: useproxy.checked
                 }
 
@@ -162,7 +166,7 @@ Item {
 
                 CTextEdit{
                     id:password
-                    width:settingItem.width/3
+                    width:settingsContent.width/3
                     enabled: useproxy.checked
                     isPW: true
                 }
@@ -183,7 +187,7 @@ Item {
 
             Row{
                 spacing:5
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
 
                 CTextEdit{
                     id:ffmpegEdit
@@ -205,7 +209,7 @@ Item {
 
             Row{
                 spacing:8
-                width:settingItem.width - 20
+                width:settingsContent.width - 20
 
                 CPushButton{
                     id:ffmpegDetect

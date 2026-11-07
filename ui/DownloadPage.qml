@@ -289,8 +289,18 @@ Item {
 
     ListView{
         id:listView
-        cacheBuffer:Math.max(height, contentHeight)
-        anchors.fill: parent
+        objectName:"taskList"
+        anchors.fill:parent
+
+        ScrollBar.vertical:ScrollBar{
+            id:verticalBar
+            policy:ScrollBar.AsNeeded
+        }
+
+        contentWidth:width
+        property int rowHeight:80
+        // 下载器由列表项持有，缓存全部任务以保持后台下载。
+        cacheBuffer:Math.max(height, listModel.count * rowHeight)
         clip:true
         model: ListModel{
             id:listModel
@@ -301,8 +311,8 @@ Item {
             id:contactsDelegate
             Rectangle{
                 id:delegateItem
-                width:listView.width - 10
-                height:80
+                width:listView.width - 10 - (verticalBar.size < 1 ? verticalBar.width : 0)
+                height:listView.rowHeight
                 //color:index == listView.currentIndex ? "#98F5FF" : "white"
                 x: 5
 

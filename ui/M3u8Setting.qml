@@ -30,9 +30,11 @@ Item {
     }
 
     MyScrollView{
+        id:scroll
+        objectName:"m3u8Scroll"
         anchors.fill:parent
         Column{
-            width:m3u8Item.width - 15
+            width:scroll.viewport.width
             spacing:10
             padding:5
 

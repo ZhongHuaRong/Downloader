@@ -36,12 +36,13 @@ Item {
         anchors.fill: parent
 
         Column{
-            width:httpItem.width - 15
+            width:scroll.viewport.width
             spacing: 10
             padding: 5
 
             Row {
                 id: fileNameRow
+                width:parent.width - 10
                 visible:!httpItem.videoMode
                 height: 40
                 spacing: 10
@@ -54,7 +55,7 @@ Item {
 
                 CTextEdit{
                     id:targetEdit
-                    width:httpItem.width - fileNameText.width - 35
+                    width:parent.width - fileNameText.width - 10
                     placeholderText:"输入路劲"
                 }
             }

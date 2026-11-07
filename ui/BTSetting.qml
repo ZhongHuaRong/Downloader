@@ -22,13 +22,17 @@ Item {
     }
 
     MyScrollView{
+        id:scroll
+        objectName:"btScroll"
         anchors.fill: parent
 
         Column{
+            width:scroll.viewport.width
             spacing: 10
             padding: 5
 
             Row {
+                width:parent.width - 10
                 height: 40
                 spacing: 10
 
@@ -40,12 +44,13 @@ Item {
 
                 CTextEdit{
                     id:srcEdit
-                    width:httpItem.width - urlText.width - 35
+                    width:parent.width - urlText.width - 10
                     readOnly: true
                 }
             }
 
             Row {
+                width:parent.width - 10
                 height: 40
                 spacing: 10
 
@@ -57,7 +62,7 @@ Item {
 
                 CTextEdit{
                     id:targetEdit
-                    width:httpItem.width - fileNameText.width - 35
+                    width:parent.width - fileNameText.width - 10
                     readOnly: true
                 }
             }

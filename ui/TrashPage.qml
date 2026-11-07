@@ -265,7 +265,15 @@ Item {
 
     ListView{
         id:listView
-        anchors.fill: parent
+        objectName:"taskList"
+        anchors.fill:parent
+
+        ScrollBar.vertical:ScrollBar{
+            id:verticalBar
+            policy:ScrollBar.AsNeeded
+        }
+
+        contentWidth:width
         clip:true
         model: ListModel{
             id:listModel
@@ -276,7 +284,7 @@ Item {
             id:contactsDelegate
             Rectangle{
                 id:delegateItem
-                width:listView.width - 10
+                width:listView.width - 10 - (verticalBar.size < 1 ? verticalBar.width : 0)
                 height:80
                 //color:index == listView.currentIndex ? "#98F5FF" : "white"
                 x: 5
