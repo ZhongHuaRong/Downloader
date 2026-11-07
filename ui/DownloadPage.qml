@@ -552,7 +552,7 @@ Item {
 
                     Action{
                         id:startAction
-                        text:qsTr("开始下载")
+                        text:qsTr("Start Download")
                         checkable: false
                         enabled: !delegateItem.activeTask
                         onTriggered: {
@@ -563,7 +563,7 @@ Item {
 
                     Action{
                         id:pauseAction
-                        text:delegateItem.state == "merging" ? "停止合并" : "暂停下载"
+                        text:delegateItem.state == "merging" ? qsTr("Stop Merge") : qsTr("Stop Download")
                         checkable: false
                         enabled:!startAction.enabled
                         onTriggered: {
@@ -574,7 +574,7 @@ Item {
 
                     Action{
                         id:view
-                        text:qsTr("打开所在文件夹")
+                        text:qsTr("View on Explorer")
                         checkable: false
                         onTriggered: {
                             popup.close()
@@ -584,7 +584,7 @@ Item {
 
                     Action{
                         id:removeAction
-                        text:qsTr("移至已删除")
+                        text:qsTr("Remove to trash")
                         checkable: false
                         onTriggered: {
                             popup.close()
@@ -598,7 +598,7 @@ Item {
 
                     Action{
                         id:deleteAction
-                        text:qsTr("永久删除")
+                        text:qsTr("Delete permanently")
                         checkable: false
                         onTriggered: {
                             popup.close()
@@ -613,7 +613,7 @@ Item {
                     MenuSeparator{}
 
                     Action{
-                        text:qsTr("全部删除")
+                        text:qsTr("Delete All")
                         enabled:page.count > 0
                         onTriggered: {
                             popup.close()

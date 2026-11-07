@@ -363,7 +363,7 @@ Item {
 
                     Action{
                         id:startAction
-                        text:qsTr("开始下载")
+                        text:qsTr("Start Download")
                         checkable: false
                         onTriggered: {
                             popup.close()
@@ -373,7 +373,7 @@ Item {
 
                     Action{
                         id:viewAction
-                        text:qsTr("打开所在文件夹")
+                        text:qsTr("View on Explorer")
                         checkable: false
                         onTriggered: {
                             popup.close()
@@ -383,7 +383,7 @@ Item {
 
                     Action{
                         id:deleteAction
-                        text:qsTr("永久删除")
+                        text:qsTr("Delete permanently")
                         checkable: false
                         onTriggered: {
                             popup.close()
@@ -394,7 +394,7 @@ Item {
                     MenuSeparator{}
 
                     Action{
-                        text:qsTr("全部删除")
+                        text:qsTr("Delete All")
                         enabled:page.count > 0
                         onTriggered: {
                             popup.close()
